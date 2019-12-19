@@ -1,5 +1,8 @@
 #include <stdio.h>
+#include <io.h>
 #include <stdlib.h>
+#include <pthread.h>
+#include <assert.h>
 
 //https://sigrok.org/wiki/Libserialport
 #include <libserialport.h>
@@ -38,12 +41,75 @@ void print_devices ()
 }
 
 
-int main (int argc, char * argv[])
+struct main_context
 {
-	setbuf (stdout, NULL);
+	struct sp_port * port;
+	pthread_t thread_writer;
+	pthread_t thread_reader;
 
-	int opt_list = 0;
-	char * opt_devname = NULL;
+	int showlist;
+	char * devname;
+	int baudrate;
+};
+
+
+void * reader (void * arg)
+{
+	struct main_context * ctx = arg;
+	assert (ctx);
+	enum sp_return r;
+	while (1)
+	{
+		char buf [1000];
+		size_t count = 1000;
+		r = sp_blocking_read_next (ctx->port, buf, count, 0);
+		sp_exit_on_error (r);
+		if (r > 0)
+		{
+			fwrite (buf, sizeof (char), (size_t)r, stdout);
+		}
+	}
+}
+
+void * writer (void * arg)
+{
+	struct main_context * ctx = arg;
+	assert (ctx);
+	char buffer [100];
+	int count = 100;
+	while (1)
+	{
+		printf ("\nEnter: ");
+		int n = read (STDIN_FILENO, buffer, (unsigned)count);
+		if (n < 0)
+		{
+			perror ("Read failed\n");
+			exit (EXIT_FAILURE);
+		}
+		if (n >= count)
+		{
+			perror ("Too large input\n");
+			exit (EXIT_FAILURE);
+		}
+		assert (n >= 0 && n < count);
+		buffer [n] = '\0';
+		//Userinput ends with a linefeed character by pressing enter key.
+		//Quit when user presses q + enter.
+		if (strcmp (buffer, "q\n") == 0)
+		{
+			return NULL;
+		}
+	}
+	return NULL;
+}
+
+
+int main (int argc, char const * argv[])
+{
+	struct main_context ctx = {0};
+	ctx.baudrate = 115200;
+
+	setbuf (stdout, NULL);
 
 	//Configure the argparse (ap):
 	//Define different program options that the user can input (argc, argv):
@@ -52,8 +118,9 @@ int main (int argc, char * argv[])
 	{
 		OPT_HELP (),
 		OPT_GROUP ("Basic options"),
-		OPT_BOOLEAN('l', "list", &opt_list, "list devices", NULL, 0, 0),
-		OPT_STRING('D', "device", &opt_devname, "open device name", NULL, 0, 0),
+		OPT_BOOLEAN ('l', "list", &ctx.showlist, "list devices", NULL, 0, 0),
+		OPT_STRING ('D', "device", &ctx.devname, "Specify the device, overriding the value given in the configuration file.", NULL, 0, 0),
+		OPT_INTEGER ('b', "baudrate", &ctx.baudrate, "Specify the baud rate, overriding the value given in the configuration file.", NULL, 0, 0),
 		OPT_END ()
 	};
 	argparse_init (&ap, ap_opt, usage, 0);
@@ -67,41 +134,35 @@ int main (int argc, char * argv[])
 		exit (0);
 	}
 
-	if (opt_list)
+	if (ctx.showlist)
 	{
 		print_devices();
 	}
 
-	if (opt_devname)
+	if (ctx.devname)
 	{
 		enum sp_return r;
-		struct sp_port * port;
-		r = sp_get_port_by_name (opt_devname, &port);
+		r = sp_get_port_by_name (ctx.devname, &ctx.port);
 		sp_exit_on_error (r);
-		r = sp_open (port, SP_MODE_READ_WRITE);
+		r = sp_open (ctx.port, SP_MODE_READ_WRITE);
 		sp_exit_on_error (r);
-		r = sp_set_baudrate (port, 115200);
+		r = sp_set_baudrate (ctx.port, ctx.baudrate);
 		sp_exit_on_error (r);
-		r = sp_set_parity (port, SP_PARITY_NONE);
+		r = sp_set_parity (ctx.port, SP_PARITY_NONE);
 		sp_exit_on_error (r);
-		r = sp_set_stopbits (port, 1);
+		r = sp_set_stopbits (ctx.port, 1);
 		sp_exit_on_error (r);
-		r = sp_set_bits (port, 8);
+		r = sp_set_bits (ctx.port, 8);
 		sp_exit_on_error (r);
-		r = sp_set_flowcontrol (port, SP_FLOWCONTROL_NONE);
+		r = sp_set_flowcontrol (ctx.port, SP_FLOWCONTROL_NONE);
 		sp_exit_on_error (r);
-		while (1)
-		{
-			char buf [1000];
-			size_t count = 1000;
-			r = sp_blocking_read_next (port, buf, count, 0);
-			sp_exit_on_error (r);
-			if (r > 0)
-			{
-				fwrite (buf, sizeof (char), r, stdout);
-			}
-		}
+		pthread_create (&ctx.thread_reader, NULL, reader, &ctx);
 	}
+
+
+	pthread_create (&ctx.thread_writer, NULL, writer, &ctx);
+
+	pthread_join (ctx.thread_writer, NULL);
 
 	return 0;
 }
