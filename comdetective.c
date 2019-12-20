@@ -44,11 +44,11 @@ void print_devices ()
 struct main_context
 {
 	struct sp_port * port;
+	enum sp_mode mode;
 	pthread_t thread_writer;
 	pthread_t thread_reader;
 
 	char * devname;
-	int showlist;
 	int baudrate;
 	int bits;
 };
@@ -78,9 +78,10 @@ void * writer (void * arg)
 	assert (ctx);
 	char buffer [100];
 	int count = 100;
+	enum sp_return r;
 	while (1)
 	{
-		printf ("\nEnter: ");
+		printf ("\n$ ");
 		int n = read (STDIN_FILENO, buffer, (unsigned)count);
 		if (n < 0)
 		{
@@ -94,12 +95,15 @@ void * writer (void * arg)
 		}
 		assert (n >= 0 && n < count);
 		buffer [n] = '\0';
-		//Userinput ends with a linefeed character by pressing enter key.
-		//Quit when user presses q + enter.
+		//The userinputs contains the linefeed character due to pressing enter key.
+		//Destroy this thread when user presses q + enter.
 		if (strcmp (buffer, "q\n") == 0)
 		{
 			return NULL;
 		}
+
+		r = sp_blocking_write (ctx->port, buffer, (size_t)n, 0);
+		sp_exit_on_error (r);
 	}
 	return NULL;
 }
@@ -140,6 +144,7 @@ int main (int argc, char const * argv[])
 	struct main_context ctx = {0};
 	ctx.baudrate = 115200;
 	ctx.bits = 8;
+	ctx.mode = 0;
 
 	setbuf (stdout, NULL);
 
@@ -149,12 +154,15 @@ int main (int argc, char const * argv[])
 	int bit6 = 0;
 	int bit7 = 0;
 	int bit8 = 1;
+	int mode_read = 0;
+	int mode_write = 0;
+	int showlist = 0;
 	struct argparse ap = {0};
 	struct argparse_option ap_opt[] =
 	{
 		OPT_HELP (),
 		OPT_GROUP ("Basic options"),
-		OPT_BOOLEAN ('l', "list", &ctx.showlist, "list devices", NULL, 0, 0),
+		OPT_BOOLEAN ('l', "list", &showlist, "list devices", NULL, 0, 0),
 		OPT_STRING ('D', "device", &ctx.devname, DESCRIPTION_DEVICE, NULL, 0, 0),
 		OPT_INTEGER ('b', "baudrate", &ctx.baudrate, DESCRIPTION_BAUDRATE, NULL, 0, 0),
 		OPT_INTEGER ('B', "bits", &ctx.bits, DESCRIPTION_BITS, NULL, 0, 0),
@@ -162,6 +170,8 @@ int main (int argc, char const * argv[])
 		OPT_BOOLEAN ('6', "6bit", &bit6, DESCRIPTION_6BIT, NULL, 0, 0),
 		OPT_BOOLEAN ('7', "7bit", &bit7, DESCRIPTION_7BIT, NULL, 0, 0),
 		OPT_BOOLEAN ('8', "8bit", &bit8, DESCRIPTION_8BIT, NULL, 0, 0),
+		OPT_BOOLEAN ('r', "read", &mode_read, "Read mode", NULL, 0, 0),
+		OPT_BOOLEAN ('w', "write", &mode_write, "Write mode", NULL, 0, 0),
 		OPT_END ()
 	};
 	argparse_init (&ap, ap_opt, usage, 0);
@@ -175,15 +185,25 @@ int main (int argc, char const * argv[])
 		exit (0);
 	}
 
-	if (ctx.showlist)
+	if (showlist)
 	{
 		print_devices();
 	}
 
-	if (bit5) {ctx.bits = 5;}
-	if (bit6) {ctx.bits = 6;}
-	if (bit7) {ctx.bits = 7;}
-	if (bit8) {ctx.bits = 8;}
+	if (0) {}
+	else if (bit5) {ctx.bits = 5;}
+	else if (bit6) {ctx.bits = 6;}
+	else if (bit7) {ctx.bits = 7;}
+	else if (bit8) {ctx.bits = 8;}
+
+	if (0) {}
+	else if (mode_write && mode_read) {ctx.mode = SP_MODE_READ_WRITE;}
+	else if (mode_read) {ctx.mode = SP_MODE_READ;}
+	else if (mode_write) {ctx.mode = SP_MODE_WRITE;}
+	else
+	{
+		printf ("No write or read mode is enabled.\n");
+	}
 
 	if (ctx.devname)
 	{
@@ -202,13 +222,31 @@ int main (int argc, char const * argv[])
 		sp_exit_on_error (r);
 		r = sp_set_flowcontrol (ctx.port, SP_FLOWCONTROL_NONE);
 		sp_exit_on_error (r);
+	}
+
+	if (ctx.mode & SP_MODE_READ)
+	{
+		printf ("thread_reader\n");
 		pthread_create (&ctx.thread_reader, NULL, reader, &ctx);
 	}
 
+	if (ctx.mode & SP_MODE_WRITE)
+	{
+		printf ("thread_writer\n");
+		pthread_create (&ctx.thread_writer, NULL, writer, &ctx);
+	}
 
-	pthread_create (&ctx.thread_writer, NULL, writer, &ctx);
+	if (ctx.mode & SP_MODE_READ)
+	{
+		pthread_join (ctx.thread_reader, NULL);
+	}
 
-	pthread_join (ctx.thread_writer, NULL);
+	if (ctx.mode & SP_MODE_WRITE)
+	{
+		pthread_join (ctx.thread_writer, NULL);
+	}
+
+
 
 	return 0;
 }
