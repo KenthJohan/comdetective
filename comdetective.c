@@ -47,9 +47,10 @@ struct main_context
 	pthread_t thread_writer;
 	pthread_t thread_reader;
 
-	int showlist;
 	char * devname;
+	int showlist;
 	int baudrate;
+	int bits;
 };
 
 
@@ -103,24 +104,64 @@ void * writer (void * arg)
 	return NULL;
 }
 
+#define DESCRIPTION_DEVICE \
+"Specify the device, overriding the value given in the configuration file."
+
+#define DESCRIPTION_BAUDRATE \
+"Specify the baud rate, overriding the value given in the configuration file."
+
+#define DESCRIPTION_BITS \
+"Set the data bits for the specified serial port."
+
+#define DESCRIPTION_5BIT \
+"5bit mode for terminals which aren't 8bit capable. 8bit is default if the environment " \
+"is configured for this via LANG or LC_ALL, 7bit otherwise."
+
+#define DESCRIPTION_6BIT \
+"6bit mode for terminals which aren't 8bit capable. 8bit is default if the environment " \
+"is configured for this via LANG or LC_ALL, 7bit otherwise."
+
+#define DESCRIPTION_7BIT \
+"7bit mode for terminals which aren't 8bit capable. 8bit is default if the environment " \
+"is configured for this via LANG or LC_ALL, 7bit otherwise."
+
+#define DESCRIPTION_8BIT \
+"8bit characters pass through without any modification. 'Continuous' means no" \
+"locate/attribute control sequences are inserted without real change of" \
+"locate/attribute. This mode is to display 8bit multi-byte characters such as" \
+"Japanese. Not needed in every language with 8bit characters. (For example  displaying" \
+"Finnish text doesn't need this.)"
+
+
+
 
 int main (int argc, char const * argv[])
 {
 	struct main_context ctx = {0};
 	ctx.baudrate = 115200;
+	ctx.bits = 8;
 
 	setbuf (stdout, NULL);
 
 	//Configure the argparse (ap):
 	//Define different program options that the user can input (argc, argv):
+	int bit5 = 0;
+	int bit6 = 0;
+	int bit7 = 0;
+	int bit8 = 1;
 	struct argparse ap = {0};
 	struct argparse_option ap_opt[] =
 	{
 		OPT_HELP (),
 		OPT_GROUP ("Basic options"),
 		OPT_BOOLEAN ('l', "list", &ctx.showlist, "list devices", NULL, 0, 0),
-		OPT_STRING ('D', "device", &ctx.devname, "Specify the device, overriding the value given in the configuration file.", NULL, 0, 0),
-		OPT_INTEGER ('b', "baudrate", &ctx.baudrate, "Specify the baud rate, overriding the value given in the configuration file.", NULL, 0, 0),
+		OPT_STRING ('D', "device", &ctx.devname, DESCRIPTION_DEVICE, NULL, 0, 0),
+		OPT_INTEGER ('b', "baudrate", &ctx.baudrate, DESCRIPTION_BAUDRATE, NULL, 0, 0),
+		OPT_INTEGER ('B', "bits", &ctx.bits, DESCRIPTION_BITS, NULL, 0, 0),
+		OPT_BOOLEAN ('5', "7bit", &bit5, DESCRIPTION_5BIT, NULL, 0, 0),
+		OPT_BOOLEAN ('6', "6bit", &bit6, DESCRIPTION_6BIT, NULL, 0, 0),
+		OPT_BOOLEAN ('7', "7bit", &bit7, DESCRIPTION_7BIT, NULL, 0, 0),
+		OPT_BOOLEAN ('8', "8bit", &bit8, DESCRIPTION_8BIT, NULL, 0, 0),
 		OPT_END ()
 	};
 	argparse_init (&ap, ap_opt, usage, 0);
@@ -138,6 +179,11 @@ int main (int argc, char const * argv[])
 	{
 		print_devices();
 	}
+
+	if (bit5) {ctx.bits = 5;}
+	if (bit6) {ctx.bits = 6;}
+	if (bit7) {ctx.bits = 7;}
+	if (bit8) {ctx.bits = 8;}
 
 	if (ctx.devname)
 	{

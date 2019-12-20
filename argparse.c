@@ -401,7 +401,14 @@ void argparse_usage (struct argparse *self)
 			fprintf (stdout, "\n%s\n", options->help);
 			break;
 		case ARGPARSE_OPT_BOOLEAN:
-			fprintf (stdout, " -%c, --%-20.20s\n", options->short_name, options->long_name);
+			if (options->value)
+			{
+				fprintf (stdout, " -%c, --%-20.20s = %-30i | %s\n", options->short_name, options->long_name, *(int*)options->value, options->help);
+			}
+			else
+			{
+				fprintf (stdout, " -%c, --%-20.20s\n", options->short_name, options->long_name);
+			}
 			break;
 		case ARGPARSE_OPT_BIT:
 			break;
