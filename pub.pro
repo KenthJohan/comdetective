@@ -3,8 +3,7 @@ CONFIG += console
 CONFIG -= app_bundle
 CONFIG -= qt
 
-SOURCES += comdetective.c
-#SOURCES += main_test.c
+SOURCES += pub.c
 SOURCES += argparse.c
 HEADERS += argparse.h
 HEADERS += csc_tcol.h

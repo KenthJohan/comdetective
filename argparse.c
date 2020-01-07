@@ -278,24 +278,13 @@ static void argparse_long_opt (struct argparse *self, struct argparse_option opt
 }
 
 
-int argparse_init (struct argparse *self, struct argparse_option *options, const char *const usages [], int flags)
+int argparse_init (struct argparse *self, struct argparse_option *options, int flags)
 {
 	assert (self);
 	memset (self, 0, sizeof(*self));
 	self->options = options;
-	self->usages = usages;
 	self->flags = flags;
-	self->description = NULL;
-	self->epilog = NULL;
 	return 0;
-}
-
-
-void argparse_describe (struct argparse *self, const char *description, const char *epilog)
-{
-	assert (self);
-	self->description = description;
-	self->epilog = epilog;
 }
 
 
@@ -347,7 +336,7 @@ int argparse_parse (struct argparse *self, int argc, const char *argv [])
 		continue;
 unknown:
 		fprintf (stdout, "error: unknown option `%s`\n", self->argv[0]);
-		argparse_usage (self);
+		argparse_describe (self);
 		exit (1);
 	}
 
@@ -358,44 +347,39 @@ end:
 }
 
 
-void argparse_usage1 (const char *const *usages)
+void argparse_usage (const char *const *usages)
 {
-	if (usages)
-	{
-		fprintf (stdout, "Usage: %s\n", *usages++);
-		while (*usages && **usages)
-		{
-			fprintf (stdout, "   or: %s\n", *usages++);
-		}
-	}
-	else
+	if (usages == NULL)
 	{
 		fprintf (stdout, "Usage:\n");
+		return;
+	}
+	fprintf (stdout, "Usage: %s\n", *usages);
+	usages++;
+	while (*usages && **usages)
+	{
+		fprintf (stdout, "   or: %s\n", *usages);
+		usages++;
 	}
 }
 
 
-void argparse_usage (struct argparse *self)
+void argparse_describe (struct argparse *self)
 {
 	assert (self);
-	argparse_usage1 (self->usages);
-	if (self->description)
-	{
-		fprintf (stdout, "%s\n", self->description);
-	}
 	fputc ('\n', stdout);
 	for (const struct argparse_option *options = self->options; options->type != ARGPARSE_OPT_END; options++)
 	{
 		switch (options->type)
 		{
 		case ARGPARSE_OPT_FLOAT:
-			fprintf (stdout, " -%c, --%-20.20s = %-30f | %s\n", options->short_name, options->long_name, *(double*)options->value, options->help);
+			fprintf (stdout, " -%c, --%-20.20s %s\n", options->short_name, options->long_name, options->help);
 			break;
 		case ARGPARSE_OPT_INTEGER:
-			fprintf (stdout, " -%c, --%-20.20s = %-30i | %s\n", options->short_name, options->long_name, *(int*)options->value, options->help);
+			fprintf (stdout, " -%c, --%-20.20s %s\n", options->short_name, options->long_name, options->help);
 			break;
 		case ARGPARSE_OPT_STRING:
-			fprintf (stdout, " -%c, --%-20.20s = %-30s | %s\n", options->short_name, options->long_name, *(char**)options->value, options->help);
+			fprintf (stdout, " -%c, --%-20.20s %s\n", options->short_name, options->long_name, options->help);
 			break;
 		case ARGPARSE_OPT_GROUP:
 			fprintf (stdout, "\n%s\n", options->help);
@@ -403,7 +387,7 @@ void argparse_usage (struct argparse *self)
 		case ARGPARSE_OPT_BOOLEAN:
 			if (options->value)
 			{
-				fprintf (stdout, " -%c, --%-20.20s = %-30i | %s\n", options->short_name, options->long_name, *(int*)options->value, options->help);
+				fprintf (stdout, " -%c, --%-20.20s %s\n", options->short_name, options->long_name, options->help);
 			}
 			else
 			{
@@ -416,9 +400,43 @@ void argparse_usage (struct argparse *self)
 			break;
 		}
 	}
-	// print epilog
-	if (self->epilog)
+}
+
+
+void argparse_showvalues (struct argparse *self)
+{
+	assert (self);
+	fputc ('\n', stdout);
+	for (const struct argparse_option *options = self->options; options->type != ARGPARSE_OPT_END; options++)
 	{
-		fprintf (stdout, "%s\n", self->epilog);
+		switch (options->type)
+		{
+		case ARGPARSE_OPT_FLOAT:
+			fprintf (stdout, " -%c, --%-20.20s = %-30f\n", options->short_name, options->long_name, *(double*)options->value);
+			break;
+		case ARGPARSE_OPT_INTEGER:
+			fprintf (stdout, " -%c, --%-20.20s = %-30i\n", options->short_name, options->long_name, *(int*)options->value);
+			break;
+		case ARGPARSE_OPT_STRING:
+			fprintf (stdout, " -%c, --%-20.20s = %-30s\n", options->short_name, options->long_name, *(char**)options->value);
+			break;
+		case ARGPARSE_OPT_GROUP:
+			fprintf (stdout, "\n%s\n", options->help);
+			break;
+		case ARGPARSE_OPT_BOOLEAN:
+			if (options->value)
+			{
+				fprintf (stdout, " -%c, --%-20.20s = %-30i\n", options->short_name, options->long_name, *(int*)options->value);
+			}
+			else
+			{
+				fprintf (stdout, " -%c, --%-20.20s\n", options->short_name, options->long_name);
+			}
+			break;
+		case ARGPARSE_OPT_BIT:
+			break;
+		case ARGPARSE_OPT_END:
+			break;
+		}
 	}
 }

@@ -3,12 +3,51 @@
 #include <stdlib.h>
 #include <pthread.h>
 #include <assert.h>
+#define NNG_STATIC_LIB
+#include <nng/nng.h>
+#include <nng/protocol/pubsub0/pub.h>
+#include <nng/protocol/pubsub0/sub.h>
+#include <nng/supplemental/util/platform.h>
 
 //https://sigrok.org/wiki/Libserialport
 #include <libserialport.h>
+#include <csc_debug.h>
+
 
 #include "argparse.h"
+#include "comdetective.h"
 
+
+#define DESCRIPTION_DEVICE \
+"Specify the device, overriding the value given in the configuration file."
+
+#define DESCRIPTION_BAUDRATE \
+"Specify the baud rate, overriding the value given in the configuration file."
+
+#define DESCRIPTION_BITS \
+"Set the data bits for the specified serial port."
+
+#define DESCRIPTION_5BIT \
+"5bit mode for terminals which aren't 8bit capable. 8bit is default if the environment " \
+"is configured for this via LANG or LC_ALL, 7bit otherwise."
+
+#define DESCRIPTION_6BIT \
+"6bit mode for terminals which aren't 8bit capable. 8bit is default if the environment " \
+"is configured for this via LANG or LC_ALL, 7bit otherwise."
+
+#define DESCRIPTION_7BIT \
+"7bit mode for terminals which aren't 8bit capable. 8bit is default if the environment " \
+"is configured for this via LANG or LC_ALL, 7bit otherwise."
+
+#define DESCRIPTION_8BIT \
+"8bit characters pass through without any modification. 'Continuous' means no" \
+"locate/attribute control sequences are inserted without real change of" \
+"locate/attribute. This mode is to display 8bit multi-byte characters such as" \
+"Japanese. Not needed in every language with 8bit characters. (For example  displaying" \
+"Finnish text doesn't need this.)"
+
+#define DESCRIPTION "COM Detetective"
+#define EPILOG ""
 
 static const char *const usage[] =
 {
@@ -16,6 +55,7 @@ static const char *const usage[] =
 "comdetective [options]",
 NULL,
 };
+
 
 void sp_exit_on_error (enum sp_return r)
 {
@@ -45,12 +85,17 @@ struct main_context
 {
 	struct sp_port * port;
 	enum sp_mode mode;
+	int padding;
 	pthread_t thread_writer;
 	pthread_t thread_reader;
 
 	char * devname;
 	int baudrate;
 	int bits;
+
+	char * address;
+	nng_socket sub;
+	int padding1;
 };
 
 
@@ -81,70 +126,51 @@ void * writer (void * arg)
 	enum sp_return r;
 	while (1)
 	{
-		printf ("\n$ ");
-		int n = read (STDIN_FILENO, buffer, (unsigned)count);
-		if (n < 0)
+		if (ctx->address)
 		{
-			perror ("Read failed\n");
-			exit (EXIT_FAILURE);
+			nng_msg *msg;
+			int r;
+			printf ("\n$ ");
+			r = nng_recvmsg (ctx->sub, &msg, 0);
+			ASSERTNNG (r);
+			printf ("%s", nng_msg_body (msg));
+			nng_msg_free (msg);
 		}
-		if (n >= count)
+		else
 		{
-			perror ("Too large input\n");
-			exit (EXIT_FAILURE);
+			printf ("\n$ ");
+			int n = read (STDIN_FILENO, buffer, (unsigned)count);
+			if (n < 0)
+			{
+				perror ("Read failed\n");
+				exit (EXIT_FAILURE);
+			}
+			if (n >= count)
+			{
+				perror ("Too large input\n");
+				exit (EXIT_FAILURE);
+			}
+			assert (n >= 0 && n < count);
+			buffer [n] = '\0';
+			//The userinputs contains the linefeed character due to pressing enter key.
+			//Destroy this thread when user presses q + enter.
+			if (strcmp (buffer, "q\n") == 0)
+			{
+				return NULL;
+			}
+			r = sp_blocking_write (ctx->port, buffer, (size_t)n, 0);
+			sp_exit_on_error (r);
 		}
-		assert (n >= 0 && n < count);
-		buffer [n] = '\0';
-		//The userinputs contains the linefeed character due to pressing enter key.
-		//Destroy this thread when user presses q + enter.
-		if (strcmp (buffer, "q\n") == 0)
-		{
-			return NULL;
-		}
-
-		r = sp_blocking_write (ctx->port, buffer, (size_t)n, 0);
-		sp_exit_on_error (r);
 	}
 	return NULL;
 }
-
-#define DESCRIPTION_DEVICE \
-"Specify the device, overriding the value given in the configuration file."
-
-#define DESCRIPTION_BAUDRATE \
-"Specify the baud rate, overriding the value given in the configuration file."
-
-#define DESCRIPTION_BITS \
-"Set the data bits for the specified serial port."
-
-#define DESCRIPTION_5BIT \
-"5bit mode for terminals which aren't 8bit capable. 8bit is default if the environment " \
-"is configured for this via LANG or LC_ALL, 7bit otherwise."
-
-#define DESCRIPTION_6BIT \
-"6bit mode for terminals which aren't 8bit capable. 8bit is default if the environment " \
-"is configured for this via LANG or LC_ALL, 7bit otherwise."
-
-#define DESCRIPTION_7BIT \
-"7bit mode for terminals which aren't 8bit capable. 8bit is default if the environment " \
-"is configured for this via LANG or LC_ALL, 7bit otherwise."
-
-#define DESCRIPTION_8BIT \
-"8bit characters pass through without any modification. 'Continuous' means no" \
-"locate/attribute control sequences are inserted without real change of" \
-"locate/attribute. This mode is to display 8bit multi-byte characters such as" \
-"Japanese. Not needed in every language with 8bit characters. (For example  displaying" \
-"Finnish text doesn't need this.)"
-
-
-
 
 int main (int argc, char const * argv[])
 {
 	struct main_context ctx = {0};
 	ctx.baudrate = 115200;
 	ctx.bits = 8;
-	ctx.mode = 0;
+	ctx.mode = (enum sp_mode)0;
 
 	setbuf (stdout, NULL);
 
@@ -172,16 +198,20 @@ int main (int argc, char const * argv[])
 		OPT_BOOLEAN ('8', "8bit", &bit8, DESCRIPTION_8BIT, NULL, 0, 0),
 		OPT_BOOLEAN ('r', "read", &mode_read, "Read mode", NULL, 0, 0),
 		OPT_BOOLEAN ('w', "write", &mode_write, "Write mode", NULL, 0, 0),
+		OPT_STRING ('a', "address", &ctx.address, DESCRIPTION_DEVICE, NULL, 0, 0),
 		OPT_END ()
 	};
-	argparse_init (&ap, ap_opt, usage, 0);
-	argparse_describe (&ap, "COM Detetective", "");
+	argparse_init (&ap, ap_opt, 0);
 	argc = argparse_parse (&ap, argc, argv);
 	//Quit when there is an argparse error:
 	//Quit when argparse help option is enabled:
 	if ((ap_opt [0].flags & OPT_PRESENT) || (ap.flags & ARGPARSE_ERROR_OPT))
 	{
-		argparse_usage (&ap);
+		fprintf (stdout, "%s\n", DESCRIPTION);
+		argparse_usage (usage);
+		argparse_describe (&ap);
+		argparse_showvalues (&ap);
+		fprintf (stdout, "%s\n", EPILOG);
 		exit (0);
 	}
 
@@ -203,6 +233,19 @@ int main (int argc, char const * argv[])
 	else
 	{
 		printf ("No write or read mode is enabled.\n");
+	}
+
+	if (ctx.address)
+	{
+		int r;
+		r = nng_sub_open (&ctx.sub);
+		ASSERTNNG (r);
+		r = nng_listen (ctx.sub, ADDRESS, NULL, 0);
+		ASSERTNNG (r);
+		r = nng_setopt (ctx.sub, NNG_OPT_SUB_SUBSCRIBE, TOPIC, strlen (TOPIC));
+		ASSERTNNG (r);
+		r = nng_setopt_ms (ctx.sub, NNG_OPT_RECVTIMEO, NNG_DURATION_INFINITE);
+		ASSERTNNG (r);
 	}
 
 	if (ctx.devname)

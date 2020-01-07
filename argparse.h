@@ -90,7 +90,17 @@ struct argparse_option
 	enum argparse_option_type type;
 	const char short_name;
 	const char *long_name;
-	void *value;
+	void * value;
+	/*
+	union
+	{
+		void * value;
+		int vali;
+		float valf;
+		double vald;
+		char * vals;
+	};
+	*/
 	const char *help;
 	argparse_callback *callback;
 	intptr_t data;
@@ -102,10 +112,7 @@ struct argparse
 {
 	// user supplied
 	struct argparse_option *options;
-	const char *const *usages;
 	int flags;
-	const char *description;    // a description after usage
-	const char *epilog;         // a description at the end
 	// internal context
 	int argc;
 	const char **argv;
@@ -126,11 +133,11 @@ struct argparse
 #define OPT_HELP()       OPT_BOOLEAN('h', "help", NULL, "show this help message and exit", NULL, 0, OPT_NONEG)
 
 
-int argparse_init (struct argparse *self, struct argparse_option *options, const char *const usages [], int flags);
-void argparse_describe (struct argparse *self, const char *description, const char *epilog);
+int argparse_init (struct argparse *self, struct argparse_option *options, int flags);
 int argparse_parse (struct argparse *self, int argc, const char *argv []);
-void argparse_usage (struct argparse *self);
-
+void argparse_describe (struct argparse *self);
+void argparse_usage (const char *const *usages);
+void argparse_showvalues (struct argparse *self);
 
 #ifdef __cplusplus
 }
