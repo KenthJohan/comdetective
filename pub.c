@@ -5,9 +5,6 @@
 #include <assert.h>
 #define NNG_STATIC_LIB
 #include <nng/nng.h>
-#include <nng/protocol/pubsub0/pub.h>
-#include <nng/protocol/pubsub0/sub.h>
-#include <nng/protocol/reqrep0/rep.h>
 #include <nng/protocol/reqrep0/req.h>
 #include <nng/supplemental/util/platform.h>
 
@@ -15,6 +12,7 @@
 
 #include "comdetective.h"
 
+#define USERINPUT_LENGTH_MAX 100
 
 
 int main (int argc, char const * argv[])
@@ -23,44 +21,67 @@ int main (int argc, char const * argv[])
 	assert (argv);
 	setbuf (stdout, NULL);
 
-	nng_socket pub;
+	nng_socket sock;
 	int r;
 
-	r = nng_req0_open (&pub);
-	ASSERTNNG (r);
+	//https://nanomsg.org/gettingstarted/nng/reqrep.html
+	//Request/Reply is used for synchronous communications where each question is responded with a single answer,
+	//for example remote procedure calls (RPCs).
+	r = nng_req0_open (&sock);
+	if (r != 0)
+	{
+		perror (nng_strerror (r));
+		exit (EXIT_FAILURE);
+	}
 
-	r = nng_dial (pub, ADDRESS, NULL, 0);
-	ASSERTNNG (r);
-
-	nng_msleep (200); // give time for connecting threads
+	//Dialers initiate a remote connection to a listener.
+	//Upon a successful connection being established, they create a pipe, add it to the socket, and then wait for that pipe to be closed.
+	//When the pipe is closed, the dialer attempts to re-establish the connection.
+	//Dialers will also periodically retry a connection automatically if an attempt to connect asynchronously fails.
+	r = nng_dial (sock, ADDRESS, NULL, 0);
+	if (r != 0)
+	{
+		perror (nng_strerror (r));
+		exit (EXIT_FAILURE);
+	}
 
 	while (1)
 	{
-		char buffer [100];
-		int count = 100;
+		char userinput [USERINPUT_LENGTH_MAX];
+
 		fputs ("$ ", stdout);
-		int n = read (STDIN_FILENO, buffer, (unsigned)count);
-		if (n < 0)
+		r = read (STDIN_FILENO, userinput, USERINPUT_LENGTH_MAX);
+		if (r < 0)
 		{
 			perror ("Read failed\n");
 			exit (EXIT_FAILURE);
 		}
-		if (n >= count)
+		if (r >= USERINPUT_LENGTH_MAX)
 		{
 			perror ("Too large input\n");
 			exit (EXIT_FAILURE);
 		}
-		assert (n >= 0 && n < count);
-		buffer [n] = '\0';
+
+		//Terminate the userinput string:
+		assert (r >= 0 && r < USERINPUT_LENGTH_MAX);
+		userinput [r] = '\0';
+
 		//The userinputs contains the linefeed character due to pressing enter key.
-		//Destroy this thread when user presses q + enter.
-		if (strcmp (buffer, "q\n") == 0)
+		if (strcmp (userinput, "q\n") == 0)
 		{
 			break;
 		}
 
-		r = nng_send (pub, buffer, (size_t)n+1, 0);
-		ASSERTNNG (r);
+		//https://nng.nanomsg.org/man/v1.2.2/nng_send.3.html
+		//The semantics of what sending a message means vary from protocol to protocol,
+		//so examination of the protocol documentation is encouraged.
+		size_t n = (size_t)r + 1;
+		r = nng_send (sock, userinput, n, 0);
+		if (r != 0)
+		{
+			perror (nng_strerror (r));
+			exit (EXIT_FAILURE);
+		}
 	}
 
 	return 0;
