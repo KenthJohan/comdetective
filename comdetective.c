@@ -7,6 +7,8 @@
 #include <nng/nng.h>
 #include <nng/protocol/pubsub0/pub.h>
 #include <nng/protocol/pubsub0/sub.h>
+#include <nng/protocol/reqrep0/rep.h>
+#include <nng/protocol/reqrep0/req.h>
 #include <nng/supplemental/util/platform.h>
 
 //https://sigrok.org/wiki/Libserialport
@@ -93,7 +95,6 @@ struct main_context
 	int baudrate;
 	int bits;
 
-	char * address;
 	nng_socket sub;
 	int padding1;
 };
@@ -126,15 +127,15 @@ void * writer (void * arg)
 	enum sp_return r;
 	while (1)
 	{
-		if (ctx->address)
+		if (nng_socket_id (ctx->sub) > 0)
 		{
-			nng_msg *msg;
 			int r;
-			printf ("\n$ ");
-			r = nng_recvmsg (ctx->sub, &msg, 0);
+			char *buf = NULL;
+			size_t sz;
+			r = nng_recv (ctx->sub, &buf, &sz, NNG_FLAG_ALLOC);
 			ASSERTNNG (r);
-			printf ("%s", nng_msg_body (msg));
-			nng_msg_free (msg);
+			fwrite (buf, 1, sz, stdout);
+			nng_free (buf, sz);
 		}
 		else
 		{
@@ -171,6 +172,7 @@ int main (int argc, char const * argv[])
 	ctx.baudrate = 115200;
 	ctx.bits = 8;
 	ctx.mode = (enum sp_mode)0;
+	ctx.sub.id = 0;//NNG_SOCKET_INITIALIZER
 
 	setbuf (stdout, NULL);
 
@@ -183,6 +185,8 @@ int main (int argc, char const * argv[])
 	int mode_read = 0;
 	int mode_write = 0;
 	int showlist = 0;
+	int listenmode = 0;
+	char * address = NULL;
 	struct argparse ap = {0};
 	struct argparse_option ap_opt[] =
 	{
@@ -198,11 +202,16 @@ int main (int argc, char const * argv[])
 		OPT_BOOLEAN ('8', "8bit", &bit8, DESCRIPTION_8BIT, NULL, 0, 0),
 		OPT_BOOLEAN ('r', "read", &mode_read, "Read mode", NULL, 0, 0),
 		OPT_BOOLEAN ('w', "write", &mode_write, "Write mode", NULL, 0, 0),
-		OPT_STRING ('a', "address", &ctx.address, DESCRIPTION_DEVICE, NULL, 0, 0),
+		OPT_BOOLEAN ('L', "listen", &listenmode, "listen", NULL, 0, 0),
+		OPT_STRING ('a', "address", &address, "listen address", NULL, 0, 0),
 		OPT_END ()
 	};
 	argparse_init (&ap, ap_opt, 0);
 	argc = argparse_parse (&ap, argc, argv);
+	if (address == NULL)
+	{
+		address = ADDRESS;
+	}
 	//Quit when there is an argparse error:
 	//Quit when argparse help option is enabled:
 	if ((ap_opt [0].flags & OPT_PRESENT) || (ap.flags & ARGPARSE_ERROR_OPT))
@@ -214,6 +223,8 @@ int main (int argc, char const * argv[])
 		fprintf (stdout, "%s\n", EPILOG);
 		exit (0);
 	}
+
+	printf ("%i , %s\n", listenmode, address);
 
 	if (showlist)
 	{
@@ -235,16 +246,12 @@ int main (int argc, char const * argv[])
 		printf ("No write or read mode is enabled.\n");
 	}
 
-	if (ctx.address)
+	if (listenmode)
 	{
 		int r;
-		r = nng_sub_open (&ctx.sub);
+		r = nng_rep0_open (&ctx.sub);
 		ASSERTNNG (r);
-		r = nng_listen (ctx.sub, ADDRESS, NULL, 0);
-		ASSERTNNG (r);
-		r = nng_setopt (ctx.sub, NNG_OPT_SUB_SUBSCRIBE, TOPIC, strlen (TOPIC));
-		ASSERTNNG (r);
-		r = nng_setopt_ms (ctx.sub, NNG_OPT_RECVTIMEO, NNG_DURATION_INFINITE);
+		r = nng_listen (ctx.sub, address, NULL, 0);
 		ASSERTNNG (r);
 	}
 

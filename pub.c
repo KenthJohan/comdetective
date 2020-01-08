@@ -7,6 +7,8 @@
 #include <nng/nng.h>
 #include <nng/protocol/pubsub0/pub.h>
 #include <nng/protocol/pubsub0/sub.h>
+#include <nng/protocol/reqrep0/rep.h>
+#include <nng/protocol/reqrep0/req.h>
 #include <nng/supplemental/util/platform.h>
 
 #include <csc_debug.h>
@@ -22,10 +24,9 @@ int main (int argc, char const * argv[])
 	setbuf (stdout, NULL);
 
 	nng_socket pub;
-	nng_msg *msg;
 	int r;
 
-	r = nng_pub_open (&pub);
+	r = nng_req0_open (&pub);
 	ASSERTNNG (r);
 
 	r = nng_dial (pub, ADDRESS, NULL, 0);
@@ -35,12 +36,9 @@ int main (int argc, char const * argv[])
 
 	while (1)
 	{
-		r = nng_msg_alloc (&msg, 0);
-		ASSERTNNG (r);
-
 		char buffer [100];
 		int count = 100;
-		printf ("\n$ ");
+		fputs ("$ ", stdout);
 		int n = read (STDIN_FILENO, buffer, (unsigned)count);
 		if (n < 0)
 		{
@@ -61,14 +59,8 @@ int main (int argc, char const * argv[])
 			break;
 		}
 
-		r = nng_msg_append (msg, TOPIC, strlen (TOPIC));
-		r = nng_msg_append (msg, buffer, strlen (buffer));
+		r = nng_send (pub, buffer, (size_t)n+1, 0);
 		ASSERTNNG (r);
-
-		r = nng_sendmsg (pub, msg, 0);
-		ASSERTNNG (r);
-
-		//nng_msg_free (msg);
 	}
 
 	return 0;

@@ -1,7 +1,6 @@
 #pragma once
 
 #define ADDRESS "ipc:///comdetective"
-#define TOPIC "/writeserial/"
 
 /*
 void client ()

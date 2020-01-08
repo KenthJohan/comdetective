@@ -96,6 +96,7 @@ static void argparse_getvalue (struct argparse *self, struct argparse_option *op
 		}
 		else
 		{
+			//*(const char **)opt->value = NULL;
 			argparse_error (self, opt, "requires a value");
 		}
 		break;
