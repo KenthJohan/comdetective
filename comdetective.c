@@ -13,7 +13,7 @@
 
 //https://sigrok.org/wiki/Libserialport
 #include <libserialport.h>
-#include <csc_debug.h>
+#include <ccc_debug.h>
 
 
 #include "argparse.h"

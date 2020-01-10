@@ -1,0 +1,3 @@
+[submodule "ccc"]
+	path = ccc
+	url = https://github.com/KenthJohan/ccc

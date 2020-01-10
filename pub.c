@@ -8,7 +8,7 @@
 #include <nng/protocol/reqrep0/req.h>
 #include <nng/supplemental/util/platform.h>
 
-#include <csc_debug.h>
+#include <ccc_debug.h>
 
 #include "comdetective.h"
 
