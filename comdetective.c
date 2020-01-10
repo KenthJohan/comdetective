@@ -77,8 +77,7 @@ void print_devices ()
 	for (struct sp_port ** p = port; (*p) != NULL; ++p)
 	{
 		//printf ("q %x\n", *p);
-		printf ("       name:  %s\n", sp_get_port_name (*p));
-		printf ("description:  %s\n", sp_get_port_description (*p));
+		printf ("%10s : %s\n", sp_get_port_name (*p), sp_get_port_description (*p));
 	}
 }
 
@@ -224,7 +223,7 @@ int main (int argc, char const * argv[])
 		exit (0);
 	}
 
-	printf ("%i , %s\n", listenmode, address);
+	//printf ("%i , %s\n", listenmode, address);
 
 	if (showlist)
 	{
