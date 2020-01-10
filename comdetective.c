@@ -132,7 +132,11 @@ void * writer (void * arg)
 			char *buf = NULL;
 			size_t sz;
 			r = nng_recv (ctx->sub, &buf, &sz, NNG_FLAG_ALLOC);
-			ASSERTNNG (r);
+			if (r != 0)
+			{
+				perror (nng_strerror (r));
+				exit (EXIT_FAILURE);
+			}
 			fwrite (buf, 1, sz, stdout);
 			nng_free (buf, sz);
 		}
@@ -249,9 +253,17 @@ int main (int argc, char const * argv[])
 	{
 		int r;
 		r = nng_rep0_open (&ctx.sub);
-		ASSERTNNG (r);
+		if (r != 0)
+		{
+			perror (nng_strerror (r));
+			exit (EXIT_FAILURE);
+		}
 		r = nng_listen (ctx.sub, address, NULL, 0);
-		ASSERTNNG (r);
+		if (r != 0)
+		{
+			perror (nng_strerror (r));
+			exit (EXIT_FAILURE);
+		}
 	}
 
 	if (ctx.devname)

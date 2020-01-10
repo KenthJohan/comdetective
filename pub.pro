@@ -6,13 +6,13 @@ CONFIG -= qt
 SOURCES += pub.c
 SOURCES += argparse.c
 HEADERS += argparse.h
-HEADERS += ccc/ccc_tcol.h
-HEADERS += ccc/ccc_debug.h
+HEADERS += csc/csc_tcol.h
+HEADERS += csc/csc_debug.h
 HEADERS += comdetective.h
 
 INCLUDEPATH += C:/msys64/mingw64/include
 INCLUDEPATH += $$PWD/nng/include
-INCLUDEPATH += $$PWD/ccc
+INCLUDEPATH += $$PWD/csc
 
 LIBS += -Lc:/msys64/mingw64/lib
 LIBS += -lserialport
