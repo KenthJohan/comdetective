@@ -4,10 +4,10 @@ CONFIG -= app_bundle
 CONFIG -= qt
 
 SOURCES += pub.c
-SOURCES += argparse.c
-HEADERS += argparse.h
-HEADERS += csc/csc_tcol.h
-HEADERS += csc/csc_debug.h
+SOURCES += $$PWD/csc/argparse.c
+HEADERS += $$PWD/csc/argparse.h
+HEADERS += $$PWD/csc/csc_tcol.h
+HEADERS += $$PWD/csc/csc_debug.h
 HEADERS += comdetective.h
 
 INCLUDEPATH += C:/msys64/mingw64/include

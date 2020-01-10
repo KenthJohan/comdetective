@@ -4,9 +4,8 @@ CONFIG -= app_bundle
 CONFIG -= qt
 
 SOURCES += comdetective.c
-#SOURCES += main_test.c
-SOURCES += argparse.c
-HEADERS += argparse.h
+SOURCES += $$PWD/csc/argparse.c
+HEADERS += $$PWD/csc/argparse.h
 HEADERS += $$PWD/csc/csc_tcol.h
 HEADERS += $$PWD/csc/csc_debug.h
 HEADERS += comdetective.h
