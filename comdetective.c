@@ -178,6 +178,7 @@ int main (int argc, char const * argv[])
 	ctx.sub.id = 0;//NNG_SOCKET_INITIALIZER
 
 	setbuf (stdout, NULL);
+	setbuf (stderr, NULL);
 
 	//Configure the argparse (ap):
 	//Define different program options that the user can input (argc, argv):
