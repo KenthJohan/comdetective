@@ -58,22 +58,37 @@ static const char *const usage[] =
 NULL,
 };
 
-
-void sp_exit_on_error (enum sp_return r)
+#define SP_EXIT_ON_ERROR(r) sp_exit_on_error(r,__FILE__,__LINE__)
+void sp_exit_on_error (enum sp_return r, char const * file, int line)
 {
 	if (r < 0)
 	{
-		printf ("Error %i %s\n", r, sp_last_error_message ());
+		fprintf (stderr, "%s:%i: ", file, line);
+		perror (sp_last_error_message ());
 		exit (EXIT_FAILURE);
 	}
 }
+
+#define NNG_EXIT_ON_ERROR(r) nng_exit_on_error(r,__FILE__,__LINE__)
+void nng_exit_on_error (int r, char const * file, int line)
+{
+	if (r != 0)
+	{
+		fprintf (stderr, "%s:%i: ", file, line);
+		perror (nng_strerror (r));
+		exit (EXIT_FAILURE);
+	}
+}
+
+
+
 
 void print_devices ()
 {
 	struct sp_port ** port;
 	enum sp_return r;
 	r = sp_list_ports (&port);
-	sp_exit_on_error (r);
+	SP_EXIT_ON_ERROR (r);
 	for (struct sp_port ** p = port; (*p) != NULL; ++p)
 	{
 		//printf ("q %x\n", *p);
@@ -87,13 +102,15 @@ struct main_context
 	struct sp_port * port;
 	enum sp_mode mode;
 	int padding;
-	pthread_t thread_writer;
+	pthread_t thread_writer_nng;
+	pthread_t thread_writer_stdin;
 	pthread_t thread_reader;
 
 	char * devname;
 	int baudrate;
 	int bits;
 
+	char * address;
 	nng_socket sub;
 	int padding1;
 };
@@ -102,7 +119,9 @@ struct main_context
 void * reader (void * arg)
 {
 	struct main_context * ctx = arg;
-	assert (ctx);
+	ASSERT (ctx);
+	ASSERT (ctx->port);
+	ASSERT (ctx->mode & SP_MODE_READ);
 	printf ("Thread %lu: Reader for %s, baudrate=%i, bits=%i\n", (unsigned long)pthread_self(), ctx->devname, ctx->baudrate, ctx->bits);
 	enum sp_return r;
 	while (1)
@@ -110,7 +129,7 @@ void * reader (void * arg)
 		char buf [1000];
 		size_t count = 1000;
 		r = sp_blocking_read_next (ctx->port, buf, count, 0);
-		sp_exit_on_error (r);
+		SP_EXIT_ON_ERROR (r);
 		if (r > 0)
 		{
 			fwrite (buf, sizeof (char), (size_t)r, stdout);
@@ -118,58 +137,69 @@ void * reader (void * arg)
 	}
 }
 
-void * writer (void * arg)
+
+void * writer_stdin (void * arg)
 {
 	struct main_context * ctx = arg;
-	assert (ctx);
-	printf ("Thread %lu: Writer for %s, baudrate=%i, bits=%i\n", (unsigned long)pthread_self(), ctx->devname, ctx->baudrate, ctx->bits);
+	ASSERT (ctx);
+	ASSERT (ctx->port);
+	ASSERT (ctx->mode & SP_MODE_WRITE);
+	printf ("Thread %lu: Writer for %s, baudrate=%i, bits=%i from STDIN\n", (unsigned long)pthread_self(), ctx->devname, ctx->baudrate, ctx->bits);
 	char buffer [100];
 	int count = 100;
 	enum sp_return r;
 	while (1)
 	{
-		if (nng_socket_id (ctx->sub) > 0)
+		printf ("\n$ ");
+		int n = read (STDIN_FILENO, buffer, (unsigned)count);
+		if (n < 0)
 		{
-			int r;
-			char *buf = NULL;
-			size_t sz;
-			r = nng_recv (ctx->sub, &buf, &sz, NNG_FLAG_ALLOC);
-			if (r != 0)
-			{
-				perror (nng_strerror (r));
-				exit (EXIT_FAILURE);
-			}
-			fwrite (buf, 1, sz, stdout);
-			nng_free (buf, sz);
+			perror ("Read failed\n");
+			exit (EXIT_FAILURE);
 		}
-		else
+		if (n >= count)
 		{
-			printf ("\n$ ");
-			int n = read (STDIN_FILENO, buffer, (unsigned)count);
-			if (n < 0)
-			{
-				perror ("Read failed\n");
-				exit (EXIT_FAILURE);
-			}
-			if (n >= count)
-			{
-				perror ("Too large input\n");
-				exit (EXIT_FAILURE);
-			}
-			assert (n >= 0 && n < count);
-			buffer [n] = '\0';
-			//The userinputs contains the linefeed character due to pressing enter key.
-			//Destroy this thread when user presses q + enter.
-			if (strcmp (buffer, "q\n") == 0)
-			{
-				return NULL;
-			}
-			r = sp_blocking_write (ctx->port, buffer, (size_t)n, 0);
-			sp_exit_on_error (r);
+			perror ("Too large input\n");
+			exit (EXIT_FAILURE);
 		}
+		ASSERT (n >= 0 && n < count);
+		buffer [n] = '\0';
+		//The userinputs contains the linefeed character due to pressing enter key.
+		//Destroy this thread when user presses q + enter.
+		if (strcmp (buffer, "q\n") == 0)
+		{
+			return NULL;
+		}
+		r = sp_blocking_write (ctx->port, buffer, (size_t)n, 0);
+		SP_EXIT_ON_ERROR (r);
 	}
 	return NULL;
 }
+
+
+void * writer_nng (void * arg)
+{
+	struct main_context * ctx = arg;
+	ASSERT (ctx);
+	ASSERT (ctx->port);
+	ASSERT (nng_socket_id (ctx->sub) > 0);
+	ASSERT (ctx->mode & SP_MODE_WRITE);
+	printf ("Thread %lu: Writer for %s, baudrate=%i, bits=%i from %s\n", (unsigned long)pthread_self(), ctx->devname, ctx->baudrate, ctx->bits, ctx->address);
+	while (1)
+	{
+		int r;
+		char * buf = NULL;
+		size_t sz;
+		r = nng_recv (ctx->sub, &buf, &sz, NNG_FLAG_ALLOC);
+		NNG_EXIT_ON_ERROR(r);
+		fwrite (buf, 1, sz, stdout);
+		r = sp_blocking_write (ctx->port, buf, (size_t)sz, 0);
+		SP_EXIT_ON_ERROR (r);
+		nng_free (buf, sz);
+	}
+	return NULL;
+}
+
 
 int main (int argc, char const * argv[])
 {
@@ -191,8 +221,7 @@ int main (int argc, char const * argv[])
 	int mode_read = 0;
 	int mode_write = 0;
 	int showlist = 0;
-	int listenmode = 0;
-	char * address = NULL;
+	int mode_listen = 0;
 	struct argparse ap = {0};
 	struct argparse_option ap_opt[] =
 	{
@@ -208,16 +237,18 @@ int main (int argc, char const * argv[])
 		OPT_BOOLEAN ('8', "8bit", &bit8, DESCRIPTION_8BIT, NULL, 0, 0),
 		OPT_BOOLEAN ('r', "read", &mode_read, "Read mode", NULL, 0, 0),
 		OPT_BOOLEAN ('w', "write", &mode_write, "Write mode", NULL, 0, 0),
-		OPT_BOOLEAN ('L', "listen", &listenmode, "listen", NULL, 0, 0),
-		OPT_STRING ('a', "address", &address, "listen address", NULL, 0, 0),
+		OPT_BOOLEAN ('L', "listen", &mode_listen, "listen", NULL, 0, 0),
+		OPT_STRING ('a', "address", &ctx.address, "listen address", NULL, 0, 0),
 		OPT_END ()
 	};
+
 	argparse_init (&ap, ap_opt, 0);
 	argc = argparse_parse (&ap, argc, argv);
-	if (address == NULL)
+	if (ctx.address == NULL)
 	{
-		address = ADDRESS;
+		ctx.address = ADDRESS;
 	}
+
 	//Quit when there is an argparse error:
 	//Quit when argparse help option is enabled:
 	if ((ap_opt [0].flags & OPT_PRESENT) || (ap.flags & ARGPARSE_ERROR_OPT))
@@ -244,71 +275,76 @@ int main (int argc, char const * argv[])
 	else if (bit8) {ctx.bits = 8;}
 
 	if (0) {}
-	else if (mode_write && mode_read) {ctx.mode = SP_MODE_READ_WRITE;}
-	else if (mode_read) {ctx.mode = SP_MODE_READ;}
-	else if (mode_write) {ctx.mode = SP_MODE_WRITE;}
-	else
+	if (mode_read) {ctx.mode |= SP_MODE_READ;}
+	if (mode_write || mode_listen) {ctx.mode |= SP_MODE_WRITE;}
+
+	if (ctx.mode & ~(unsigned)SP_MODE_READ_WRITE)
 	{
-		printf ("No write mode (-w) or read mode (-r) is enabled.\n");
+		printf ("No write mode (-w) or read mode (-r) or listen mode (-L) is enabled.\n");
 	}
 
-	if (listenmode)
+	if (mode_listen)
 	{
 		int r;
 		r = nng_rep0_open (&ctx.sub);
-		if (r != 0)
-		{
-			perror (nng_strerror (r));
-			exit (EXIT_FAILURE);
-		}
-		r = nng_listen (ctx.sub, address, NULL, 0);
-		if (r != 0)
-		{
-			perror (nng_strerror (r));
-			exit (EXIT_FAILURE);
-		}
+		NNG_EXIT_ON_ERROR (r);
+		r = nng_listen (ctx.sub, ctx.address, NULL, 0);
+		NNG_EXIT_ON_ERROR (r);
 	}
 
 	if (ctx.devname)
 	{
 		enum sp_return r;
 		r = sp_get_port_by_name (ctx.devname, &ctx.port);
-		sp_exit_on_error (r);
+		SP_EXIT_ON_ERROR (r);
 		r = sp_open (ctx.port, SP_MODE_READ_WRITE);
-		sp_exit_on_error (r);
+		SP_EXIT_ON_ERROR (r);
 		r = sp_set_baudrate (ctx.port, ctx.baudrate);
-		sp_exit_on_error (r);
+		SP_EXIT_ON_ERROR (r);
 		r = sp_set_parity (ctx.port, SP_PARITY_NONE);
-		sp_exit_on_error (r);
+		SP_EXIT_ON_ERROR (r);
 		r = sp_set_stopbits (ctx.port, 1);
-		sp_exit_on_error (r);
+		SP_EXIT_ON_ERROR (r);
 		r = sp_set_bits (ctx.port, 8);
-		sp_exit_on_error (r);
+		SP_EXIT_ON_ERROR (r);
 		r = sp_set_flowcontrol (ctx.port, SP_FLOWCONTROL_NONE);
-		sp_exit_on_error (r);
+		SP_EXIT_ON_ERROR (r);
+	}
+	else
+	{
+		printf ("No device name (-D) provided. Use (-l) to see available devices.\n");
+		return 0;
 	}
 
-	if (ctx.mode & SP_MODE_READ)
+	if (mode_read)
 	{
 		pthread_create (&ctx.thread_reader, NULL, reader, &ctx);
 	}
 
-	if (ctx.mode & SP_MODE_WRITE)
+	if (mode_write)
 	{
-		pthread_create (&ctx.thread_writer, NULL, writer, &ctx);
+		pthread_create (&ctx.thread_writer_stdin, NULL, writer_stdin, &ctx);
 	}
 
-	if (ctx.mode & SP_MODE_READ)
+	if (mode_listen)
+	{
+		pthread_create (&ctx.thread_writer_nng, NULL, writer_nng, &ctx);
+	}
+
+	if (mode_read)
 	{
 		pthread_join (ctx.thread_reader, NULL);
 	}
 
-	if (ctx.mode & SP_MODE_WRITE)
+	if (mode_write)
 	{
-		pthread_join (ctx.thread_writer, NULL);
+		pthread_join (ctx.thread_writer_stdin, NULL);
 	}
 
-
+	if (mode_listen)
+	{
+		pthread_join (ctx.thread_writer_nng, NULL);
+	}
 
 	return 0;
 }
