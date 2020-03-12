@@ -103,6 +103,7 @@ void * reader (void * arg)
 {
 	struct main_context * ctx = arg;
 	assert (ctx);
+	printf ("Thread %lu: Reader for %s, baudrate=%i, bits=%i\n", (unsigned long)pthread_self(), ctx->devname, ctx->baudrate, ctx->bits);
 	enum sp_return r;
 	while (1)
 	{
@@ -121,6 +122,7 @@ void * writer (void * arg)
 {
 	struct main_context * ctx = arg;
 	assert (ctx);
+	printf ("Thread %lu: Writer for %s, baudrate=%i, bits=%i\n", (unsigned long)pthread_self(), ctx->devname, ctx->baudrate, ctx->bits);
 	char buffer [100];
 	int count = 100;
 	enum sp_return r;
@@ -247,7 +249,7 @@ int main (int argc, char const * argv[])
 	else if (mode_write) {ctx.mode = SP_MODE_WRITE;}
 	else
 	{
-		printf ("No write or read mode is enabled.\n");
+		printf ("No write mode (-w) or read mode (-r) is enabled.\n");
 	}
 
 	if (listenmode)
@@ -288,13 +290,11 @@ int main (int argc, char const * argv[])
 
 	if (ctx.mode & SP_MODE_READ)
 	{
-		printf ("thread_reader\n");
 		pthread_create (&ctx.thread_reader, NULL, reader, &ctx);
 	}
 
 	if (ctx.mode & SP_MODE_WRITE)
 	{
-		printf ("thread_writer\n");
 		pthread_create (&ctx.thread_writer, NULL, writer, &ctx);
 	}
 
