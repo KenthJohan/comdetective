@@ -14,6 +14,8 @@
 //https://sigrok.org/wiki/Libserialport
 #include <libserialport.h>
 #include <csc_debug.h>
+#include <csc_debug_nng.h>
+#include <csc_debug_sp.h>
 
 
 #include "argparse.h"
@@ -57,30 +59,6 @@ static const char *const usage[] =
 "comdetective [options]",
 NULL,
 };
-
-#define SP_EXIT_ON_ERROR(r) sp_exit_on_error(r,__FILE__,__LINE__)
-void sp_exit_on_error (enum sp_return r, char const * file, int line)
-{
-	if (r < 0)
-	{
-		fprintf (stderr, "%s:%i: ", file, line);
-		perror (sp_last_error_message ());
-		exit (EXIT_FAILURE);
-	}
-}
-
-#define NNG_EXIT_ON_ERROR(r) nng_exit_on_error(r,__FILE__,__LINE__)
-void nng_exit_on_error (int r, char const * file, int line)
-{
-	if (r != 0)
-	{
-		fprintf (stderr, "%s:%i: ", file, line);
-		perror (nng_strerror (r));
-		exit (EXIT_FAILURE);
-	}
-}
-
-
 
 
 void print_devices ()
@@ -192,7 +170,8 @@ void * writer_nng (void * arg)
 		size_t sz;
 		r = nng_recv (ctx->sub, &buf, &sz, NNG_FLAG_ALLOC);
 		NNG_EXIT_ON_ERROR(r);
-		fwrite (buf, 1, sz, stdout);
+		printf ("%s -> %s : %.*s", ctx->address, ctx->devname, (int)sz, buf);
+		//fwrite (buf, 1, sz, stdout);
 		r = sp_blocking_write (ctx->port, buf, (size_t)sz, 0);
 		SP_EXIT_ON_ERROR (r);
 		nng_free (buf, sz);
