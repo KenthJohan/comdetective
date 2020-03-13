@@ -82,6 +82,7 @@ struct main_context
 	int padding;
 	pthread_t thread_writer_nng;
 	pthread_t thread_writer_stdin;
+	pthread_t thread_writer_cmd;
 	pthread_t thread_reader;
 
 	char * devname;
@@ -113,6 +114,41 @@ void * reader (void * arg)
 			fwrite (buf, sizeof (char), (size_t)r, stdout);
 		}
 	}
+}
+
+
+void * writer_cmd (void * arg)
+{
+	struct main_context * ctx = arg;
+	ASSERT (ctx);
+	ASSERT (ctx->port);
+	ASSERT (ctx->mode & SP_MODE_READ);
+	printf ("Thread %lu: Commando mode\n", (unsigned long)pthread_self());
+	char buffer [100];
+	while (1)
+	{
+		printf ("\n$ ");
+		int n = read (STDIN_FILENO, buffer, sizeof (buffer));
+		if (n < 0)
+		{
+			perror ("Read failed\n");
+			exit (EXIT_FAILURE);
+		}
+		if (n >= (int)sizeof (buffer))
+		{
+			perror ("Too large input\n");
+			exit (EXIT_FAILURE);
+		}
+		ASSERT (n >= 0 && n < (int)sizeof (buffer));
+		buffer [n] = '\0';
+		//The userinputs contains the linefeed character due to pressing enter key.
+		//Destroy this thread when user presses q + enter.
+		if (strcmp (buffer, "q\n") == 0)
+		{
+			exit (EXIT_SUCCESS);
+		}
+	}
+	return NULL;
 }
 
 
@@ -169,7 +205,7 @@ void * writer_nng (void * arg)
 		char * buf = NULL;
 		size_t sz;
 		r = nng_recv (ctx->sub, &buf, &sz, NNG_FLAG_ALLOC);
-		NNG_EXIT_ON_ERROR(r);
+		NNG_EXIT_ON_ERROR (r);
 		printf ("%s -> %s : %.*s", ctx->address, ctx->devname, (int)sz, buf);
 		//fwrite (buf, 1, sz, stdout);
 		r = sp_blocking_write (ctx->port, buf, (size_t)sz, 0);
@@ -201,6 +237,7 @@ int main (int argc, char const * argv[])
 	int mode_write = 0;
 	int showlist = 0;
 	int mode_listen = 0;
+	int mode_cmd = 0;
 	struct argparse ap = {0};
 	struct argparse_option ap_opt[] =
 	{
@@ -217,6 +254,7 @@ int main (int argc, char const * argv[])
 		OPT_BOOLEAN ('r', "read", &mode_read, "Read mode", NULL, 0, 0),
 		OPT_BOOLEAN ('w', "write", &mode_write, "Write mode", NULL, 0, 0),
 		OPT_BOOLEAN ('L', "listen", &mode_listen, "listen", NULL, 0, 0),
+		OPT_BOOLEAN ('c', "cmd", &mode_cmd, "Commando mode", NULL, 0, 0),
 		OPT_STRING ('a', "address", &ctx.address, "listen address", NULL, 0, 0),
 		OPT_END ()
 	};
@@ -308,6 +346,11 @@ int main (int argc, char const * argv[])
 	if (mode_listen)
 	{
 		pthread_create (&ctx.thread_writer_nng, NULL, writer_nng, &ctx);
+	}
+
+	if (mode_cmd)
+	{
+		pthread_create (&ctx.thread_writer_cmd, NULL, writer_cmd, &ctx);
 	}
 
 	if (mode_read)
