@@ -1,6 +1,8 @@
 #include <stdio.h>
 #include <io.h>
 #include <stdlib.h>
+#include <inttypes.h>
+#include <stdint.h>
 #include <pthread.h>
 #include <assert.h>
 #define NNG_STATIC_LIB
@@ -146,6 +148,24 @@ void * writer_cmd (void * arg)
 		if (strcmp (buffer, "q\n") == 0)
 		{
 			exit (EXIT_SUCCESS);
+		}
+
+		if (strncmp (buffer, "buadrate=", sizeof("buadrate=")-1) == 0)
+		{
+			printf ("buffer: %s\n", buffer);
+			uintmax_t num = strtoumax (buffer+sizeof("buadrate=")-1, NULL, 10);
+			if (num == UINTMAX_MAX && errno == ERANGE)
+			{
+				perror ("strtoumax failed to convert");
+			}
+			else
+			{
+				enum sp_return r;
+				ctx->baudrate = num;
+				r = sp_set_baudrate (ctx->port, ctx->baudrate);
+				SP_EXIT_ON_ERROR (r);
+				printf ("sp_set_baudrate %i\n", ctx->baudrate);
+			}
 		}
 	}
 	return NULL;
