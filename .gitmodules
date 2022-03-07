@@ -1,3 +1,6 @@
 [submodule "csc"]
 	path = csc
 	url = https://github.com/KenthJohan/csc
+[submodule "third_party/gs"]
+	path = third_party/gs
+	url = https://github.com/MrFrenik/gunslinger
