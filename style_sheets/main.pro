@@ -2,6 +2,7 @@ TEMPLATE = app
 CONFIG += console
 CONFIG -= app_bundle
 CONFIG -= qt
+CONFIG += static
 
 DEFINES = ""
 DEFINES += __USE_MINGW_ANSI_STDIO=1
@@ -17,7 +18,9 @@ INCLUDEPATH += ../third_party/
 
 SOURCES += source/main.c
 
-
+LIBS += -Lc:/msys64/mingw64/lib
+#pkg-config --libs libserialport --static
+LIBS += -lserialport -lsetupapi
 LIBS += -lws2_32
 LIBS += -lopengl32
 LIBS += -lkernel32

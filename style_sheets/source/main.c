@@ -1,22 +1,13 @@
-/*================================================================
-    * Copyright: 2020 John Jackson
-    * gs_gui style sheets example
-
-    The purpose of this example is to demonstrate how to use the style sheets 
-    for custom gui styling. This demo shows how to create them programmatically 
-    as well as how to load from a resource data file.
-
-    Press `esc` to exit the application.
-================================================================*/
-
 #define GS_IMPL
-#include <gs/gs.h> 
-
 #define GS_IMMEDIATE_DRAW_IMPL
-#include <gs/util/gs_idraw.h>
-
 #define GS_GUI_IMPL
+#include <gs/gs.h> 
+#include <gs/util/gs_idraw.h>
 #include <gs/util/gs_gui.h>
+
+#include <libserialport.h>
+#include <stdio.h>
+#include <string.h>
 
 typedef struct 
 {
@@ -49,6 +40,81 @@ void app_init()
     app_load_style_sheet(false);
 } 
 
+#define SP_EXIT_ON_ERROR(r) sp_exit_on_error(r,__FILE__,__LINE__)
+void sp_exit_on_error (enum sp_return r, char const * file, int line)
+{
+	if (r < 0)
+	{
+		fprintf (stderr, "%s:%i: ", file, line);
+		perror (sp_last_error_message ());
+		exit (EXIT_FAILURE);
+	}
+}
+
+void print_devices(gs_gui_context_t* gui)
+{
+	gs_gui_window_begin(gui, "Window", gs_gui_rect(350, 40, 600, 500));
+	gs_gui_container_t* cnt = gs_gui_get_current_container(gui);
+	const float m = cnt->body.w * 1.0f;
+	gs_gui_layout_row(gui, 1, (int[]){m}, 0);
+	struct sp_port ** port;
+	enum sp_return r;
+	r = sp_list_ports(&port);
+	SP_EXIT_ON_ERROR (r);
+	for (struct sp_port ** p = port; (*p) != NULL; ++p)
+	{
+		char buf[100];
+		//printf ("q %x\n", *p);
+		//printf ("%10s : %s\n", sp_get_port_name(*p), sp_get_port_description(*p));
+		snprintf(buf, 100, "%10s : %s\n", sp_get_port_name(*p), sp_get_port_description(*p));
+		if (gs_gui_button(gui, buf))
+		{
+			printf("%s\n", sp_get_port_name(*p));
+		};
+	}
+	sp_free_port_list(port);
+	gs_gui_window_end(gui);
+}
+
+
+
+void test_window(gs_gui_context_t* gui)
+{
+	gs_gui_window_begin(gui, "Window", gs_gui_rect(350, 40, 600, 500));
+	{
+		// Cache the current container
+		gs_gui_container_t* cnt = gs_gui_get_current_container(gui);
+		const float m = cnt->body.w * 1.0f;
+
+		gs_gui_layout_row(gui, 1, (int[]){m}, 0);
+
+		gs_gui_layout_row(gui, 2, (int[]){200, 0}, 0);
+
+		gs_gui_text(gui, "A regular element button.");
+		gs_gui_button(gui, "button1");
+
+		gs_gui_text(gui, "A regular element label.");
+		gs_gui_label(gui, "label");
+
+		gs_gui_text(gui, "Button with classes: {.c0 .btn}");
+		gs_gui_button_ex(gui, "button##btn",
+		&(gs_gui_selector_desc_t){.classes = {"c0", "btn"}}, 0x00);
+
+		gs_gui_text(gui, "Label with id #lbl and class .c0");
+		gs_gui_label_ex(gui, "label##lbl",
+		&(gs_gui_selector_desc_t){.id = "lbl", .classes ={"c0"}}, 0x00);
+
+		// gs_gui_layout_row(gui, 2, (int[]){m, -m}, 0);
+		// gs_gui_layout_next(gui); // Empty space at beginning
+		gs_gui_layout_row(gui, 1, (int[]){0}, 0);
+		if (gs_gui_button_ex(gui, "reload style sheet", &(gs_gui_selector_desc_t){.classes = {"reload_btn"}}, 0x00)) {
+			app_load_style_sheet(true);
+		}
+	}
+	gs_gui_window_end(gui);
+}
+
+
 void app_update()
 {
     app_t* app = gs_user_data(app_t);
@@ -66,37 +132,26 @@ void app_update()
     gs_gui_begin(gui, fbs); 
 
     const gs_vec2 ws = gs_v2(500.f, 300.f);
-    gs_gui_window_begin(gui, "Window", gs_gui_rect((fbs.x - ws.x) * 0.5f, (fbs.y - ws.y) * 0.5f, ws.x, ws.y));
-    {
-        // Cache the current container 
-        gs_gui_container_t* cnt = gs_gui_get_current_container(gui);
-
-        gs_gui_layout_row(gui, 2, (int[]){200, 0}, 0);
-
-        gs_gui_text(gui, "A regular element button."); 
-        gs_gui_button(gui, "button"); 
-
-        gs_gui_text(gui, "A regular element label."); 
-        gs_gui_label(gui, "label");
-
-        gs_gui_text(gui, "Button with classes: {.c0 .btn}");
-        gs_gui_button_ex(gui, "button##btn", 
-                &(gs_gui_selector_desc_t){.classes = {"c0", "btn"}}, 0x00);
-
-        gs_gui_text(gui, "Label with id #lbl and class .c0"); 
-        gs_gui_label_ex(gui, "label##lbl", 
-                &(gs_gui_selector_desc_t){.id = "lbl", .classes ={"c0"}}, 0x00); 
-
-        const float m = cnt->body.w * 0.3f;
-        // gs_gui_layout_row(gui, 2, (int[]){m, -m}, 0);
-        // gs_gui_layout_next(gui); // Empty space at beginning
-        gs_gui_layout_row(gui, 1, (int[]){0}, 0);
-        if (gs_gui_button_ex(gui, "reload style sheet", &(gs_gui_selector_desc_t){.classes = {"reload_btn"}}, 0x00)) {
-            app_load_style_sheet(true);
-        }
+	int32_t opt =
+	GS_GUI_OPT_NOCLIP |
+	GS_GUI_OPT_NOFRAME |
+	GS_GUI_OPT_FORCESETRECT |
+	GS_GUI_OPT_NOTITLE |
+	GS_GUI_OPT_DOCKSPACE |
+	//GS_GUI_OPT_FULLSCREEN |
+	GS_GUI_OPT_NOMOVE |
+	GS_GUI_OPT_NOBRINGTOFRONT |
+	GS_GUI_OPT_NOFOCUS |
+	GS_GUI_OPT_NORESIZE;
+	gs_gui_window_begin_ex(gui, "#root", gs_gui_rect(350, 40, 600, 500), NULL, NULL, opt);
+	//gs_gui_window_begin(gui, "Window", gs_gui_rect((fbs.x - ws.x) * 0.5f, (fbs.y - ws.y) * 0.5f, ws.x, ws.y));
+	{
 	}
+	gs_gui_window_end(gui);
+	print_devices(gui);
 	gs_gui_demo_window(gui, gs_gui_rect(200, 100, 500, 250), NULL);
-    gs_gui_window_end(gui);
+	gs_gui_style_editor(gui, NULL, gs_gui_rect(350, 250, 300, 240), NULL);
+
 
     // End gui frame
     gs_gui_end(gui);
