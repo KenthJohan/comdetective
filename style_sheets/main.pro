@@ -16,7 +16,10 @@ QMAKE_CFLAGS += -std=gnu99 -w
 
 INCLUDEPATH += ../third_party/
 
+HEADERS += source/*.h
 SOURCES += source/main.c
+SOURCES += source/flecs.c
+SOURCES += source/eg_serialport.c
 
 LIBS += -Lc:/msys64/mingw64/lib
 #pkg-config --libs libserialport --static

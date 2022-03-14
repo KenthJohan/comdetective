@@ -4,10 +4,13 @@
 #include <gs/gs.h> 
 #include <gs/util/gs_idraw.h>
 #include <gs/util/gs_gui.h>
+#include "flecs.h"
 
 #include <libserialport.h>
 #include <stdio.h>
 #include <string.h>
+
+#include "eg_serialport.h"
 
 typedef struct 
 {
@@ -16,14 +19,21 @@ typedef struct
     const char* asset_dir;
     gs_asset_font_t font;
     gs_gui_style_sheet_t style_sheet;
-} app_t; 
+	ecs_world_t * world;
+} app_t;
 
-void gui_cb(gs_gui_context_t* ctx, struct gs_gui_customcommand_t* cmd);
-void app_load_style_sheet(bool destroy);
+static void gui_cb(gs_gui_context_t* ctx, struct gs_gui_customcommand_t* cmd);
+static void app_load_style_sheet(bool destroy);
 
-void app_init()
+static void app_init()
 {
+	ecs_log_set_level(0);
+	ecs_world_t *world = ecs_init();
+	ECS_IMPORT(world, FlecsComponentsEgSerialPort);
+	ecs_singleton_set(world, EcsRest, {0});
+
     app_t* app = gs_user_data(app_t);
+	app->world = world;
     app->cb = gs_command_buffer_new(); 
     gs_gui_init(&app->gui, gs_platform_main_window()); 
     app->asset_dir = gs_platform_dir_exists("./assets") ? "./assets" : "../assets";
@@ -41,7 +51,7 @@ void app_init()
 } 
 
 #define SP_EXIT_ON_ERROR(r) sp_exit_on_error(r,__FILE__,__LINE__)
-void sp_exit_on_error (enum sp_return r, char const * file, int line)
+static void sp_exit_on_error (enum sp_return r, char const * file, int line)
 {
 	if (r < 0)
 	{
@@ -51,7 +61,7 @@ void sp_exit_on_error (enum sp_return r, char const * file, int line)
 	}
 }
 
-void print_devices(gs_gui_context_t* gui)
+static void print_devices(gs_gui_context_t* gui)
 {
 	gs_gui_window_begin(gui, "Window", gs_gui_rect(350, 40, 600, 500));
 	gs_gui_container_t* cnt = gs_gui_get_current_container(gui);
@@ -78,7 +88,7 @@ void print_devices(gs_gui_context_t* gui)
 
 
 
-void test_window(gs_gui_context_t* gui)
+static void test_window(gs_gui_context_t* gui)
 {
 	gs_gui_window_begin(gui, "Window", gs_gui_rect(350, 40, 600, 500));
 	{
@@ -115,7 +125,7 @@ void test_window(gs_gui_context_t* gui)
 }
 
 
-void app_update()
+static void app_update()
 {
     app_t* app = gs_user_data(app_t);
     gs_command_buffer_t* cb = &app->cb;
@@ -168,9 +178,12 @@ void app_update()
     
     //Submits to cb
     gs_graphics_submit_command_buffer(cb);
+
+	eg_serialport_update(app->world);
+	ecs_progress(app->world, 0);
 }
 
-void app_shutdown()
+static void app_shutdown()
 {
     app_t* app = gs_user_data(app_t);
     gs_gui_free(&app->gui); 
@@ -188,7 +201,7 @@ gs_app_desc_t gs_main(int32_t argc, char** argv)
     };
 }
 
-void app_load_style_sheet(bool destroy)
+static void app_load_style_sheet(bool destroy)
 {
     app_t* app = gs_user_data(app_t);
     if (destroy) {
