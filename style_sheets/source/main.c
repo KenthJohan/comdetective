@@ -1,7 +1,12 @@
+/*
+https://www.flecs.dev/explorer/
+*/
+
+
 #define GS_IMPL
 #define GS_IMMEDIATE_DRAW_IMPL
 #define GS_GUI_IMPL
-#include <gs/gs.h> 
+#include <gs/gs.h>
 #include <gs/util/gs_idraw.h>
 #include <gs/util/gs_gui.h>
 #include "flecs.h"
@@ -12,13 +17,13 @@
 
 #include "eg_serialport.h"
 
-typedef struct 
+typedef struct
 {
-    gs_command_buffer_t cb;
-    gs_gui_context_t gui;
-    const char* asset_dir;
-    gs_asset_font_t font;
-    gs_gui_style_sheet_t style_sheet;
+	gs_command_buffer_t cb;
+	gs_gui_context_t gui;
+	const char* asset_dir;
+	gs_asset_font_t font;
+	gs_gui_style_sheet_t style_sheet;
 	ecs_world_t * world;
 } app_t;
 
@@ -32,23 +37,23 @@ static void app_init()
 	ECS_IMPORT(world, FlecsComponentsEgSerialPort);
 	ecs_singleton_set(world, EcsRest, {0});
 
-    app_t* app = gs_user_data(app_t);
+	app_t* app = gs_user_data(app_t);
 	app->world = world;
-    app->cb = gs_command_buffer_new(); 
-    gs_gui_init(&app->gui, gs_platform_main_window()); 
-    app->asset_dir = gs_platform_dir_exists("./assets") ? "./assets" : "../assets";
-    
-    // Load in custom font file and then initialize gui font stash
-    gs_snprintfc(FONT_PATH, 256, "%s/%s", app->asset_dir, "fonts/mc_regular.otf");
-    gs_asset_font_load_from_file(FONT_PATH, &app->font, 20);
-    gs_gui_init_font_stash(&app->gui, &(gs_gui_font_stash_desc_t){
-        .fonts = (gs_gui_font_desc_t[]){{.key = "mc_regular", .font = &app->font}},
-        .size = 1 * sizeof(gs_gui_font_desc_t)
-    });
+	app->cb = gs_command_buffer_new();
+	gs_gui_init(&app->gui, gs_platform_main_window());
+	app->asset_dir = gs_platform_dir_exists("./assets") ? "./assets" : "../assets";
 
-    // Load style sheet from file now
-    app_load_style_sheet(false);
-} 
+	// Load in custom font file and then initialize gui font stash
+	gs_snprintfc(FONT_PATH, 256, "%s/%s", app->asset_dir, "fonts/mc_regular.otf");
+	gs_asset_font_load_from_file(FONT_PATH, &app->font, 20);
+	gs_gui_init_font_stash(&app->gui, &(gs_gui_font_stash_desc_t){
+	.fonts = (gs_gui_font_desc_t[]){{.key = "mc_regular", .font = &app->font}},
+	.size = 1 * sizeof(gs_gui_font_desc_t)
+	});
+
+	// Load style sheet from file now
+	app_load_style_sheet(false);
+}
 
 #define SP_EXIT_ON_ERROR(r) sp_exit_on_error(r,__FILE__,__LINE__)
 static void sp_exit_on_error (enum sp_return r, char const * file, int line)
@@ -127,21 +132,21 @@ static void test_window(gs_gui_context_t* gui)
 
 static void app_update()
 {
-    app_t* app = gs_user_data(app_t);
-    gs_command_buffer_t* cb = &app->cb;
-    gs_gui_context_t* gui = &app->gui;
-    const gs_vec2 fbs = gs_platform_framebuffer_sizev(gs_platform_main_window());
-    const float t = gs_platform_elapsed_time(); 
-    const gs_gui_style_sheet_t* ss = &app->style_sheet;
+	app_t* app = gs_user_data(app_t);
+	gs_command_buffer_t* cb = &app->cb;
+	gs_gui_context_t* gui = &app->gui;
+	const gs_vec2 fbs = gs_platform_framebuffer_sizev(gs_platform_main_window());
+	const float t = gs_platform_elapsed_time();
+	const gs_gui_style_sheet_t* ss = &app->style_sheet;
 
-    if (gs_platform_key_pressed(GS_KEYCODE_ESC)) {
-        gs_quit();
-    }
+	if (gs_platform_key_pressed(GS_KEYCODE_ESC)) {
+		gs_quit();
+	}
 
-    // Begin new frame for gui
-    gs_gui_begin(gui, fbs); 
+	// Begin new frame for gui
+	gs_gui_begin(gui, fbs);
 
-    const gs_vec2 ws = gs_v2(500.f, 300.f);
+	const gs_vec2 ws = gs_v2(500.f, 300.f);
 	int32_t opt =
 	GS_GUI_OPT_NOCLIP |
 	GS_GUI_OPT_NOFRAME |
@@ -163,21 +168,21 @@ static void app_update()
 	gs_gui_style_editor(gui, NULL, gs_gui_rect(350, 250, 300, 240), NULL);
 
 
-    // End gui frame
-    gs_gui_end(gui);
+	// End gui frame
+	gs_gui_end(gui);
 
-    // Do rendering
-    gs_graphics_clear_desc_t clear = {.actions = &(gs_graphics_clear_action_t){.color = {0.05f, 0.05f, 0.05f, 1.f}}};
-    gs_graphics_begin_render_pass(cb, (gs_handle(gs_graphics_render_pass_t)){0});
-    {
-        gs_graphics_clear(cb, &clear);
-        gs_graphics_set_viewport(cb,0,0,(int)fbs.x,(int)fbs.y);
-        gs_gui_render(gui, cb);
-    }
-    gs_graphics_end_render_pass(cb);
-    
-    //Submits to cb
-    gs_graphics_submit_command_buffer(cb);
+	// Do rendering
+	gs_graphics_clear_desc_t clear = {.actions = &(gs_graphics_clear_action_t){.color = {0.05f, 0.05f, 0.05f, 1.f}}};
+	gs_graphics_renderpass_begin(cb, (gs_handle(gs_graphics_renderpass_t)){0});
+	{
+		gs_graphics_clear(cb, &clear);
+		gs_graphics_set_viewport(cb,0,0,(int)fbs.x,(int)fbs.y);
+		gs_gui_render(gui, cb);
+	}
+	gs_graphics_renderpass_end(cb);
+
+	//Submits to cb
+	gs_graphics_command_buffer_submit(cb);
 
 	eg_serialport_update(app->world);
 	ecs_progress(app->world, 0);
@@ -185,31 +190,31 @@ static void app_update()
 
 static void app_shutdown()
 {
-    app_t* app = gs_user_data(app_t);
-    gs_gui_free(&app->gui); 
+	app_t* app = gs_user_data(app_t);
+	gs_gui_free(&app->gui);
 }
 
 gs_app_desc_t gs_main(int32_t argc, char** argv)
 {
-    return (gs_app_desc_t) {
-        .user_data = gs_malloc_init(app_t),
-        .init = app_init,
-        .update = app_update,
-        .shutdown = app_shutdown,
-        .window_width = 1024,
-        .window_height = 760
-    };
+	return (gs_app_desc_t) {
+		.user_data = gs_malloc_init(app_t),
+		.init = app_init,
+		.update = app_update,
+		.shutdown = app_shutdown,
+		.window_width = 1024,
+		.window_height = 760
+	};
 }
 
 static void app_load_style_sheet(bool destroy)
 {
-    app_t* app = gs_user_data(app_t);
-    if (destroy) {
-        gs_gui_style_sheet_destroy(&app->gui, &app->style_sheet);
-    }
-    gs_snprintfc(TMP, 256, "%s/%s", app->asset_dir, "style_sheets/gui.ss");
-    app->style_sheet = gs_gui_style_sheet_load_from_file(&app->gui, TMP);
-    gs_gui_set_style_sheet(&app->gui, &app->style_sheet);
+	app_t* app = gs_user_data(app_t);
+	if (destroy) {
+		gs_gui_style_sheet_destroy(&app->gui, &app->style_sheet);
+	}
+	gs_snprintfc(TMP, 256, "%s/%s", app->asset_dir, "style_sheets/gui.ss");
+	app->style_sheet = gs_gui_style_sheet_load_from_file(&app->gui, TMP);
+	gs_gui_set_style_sheet(&app->gui, &app->style_sheet);
 }
 
 

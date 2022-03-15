@@ -6,7 +6,7 @@
 
 
 ECS_COMPONENT_DECLARE(EgSerialPort);
-
+ECS_COMPONENT_DECLARE(EgSpParity);
 
 
 #define SP_EXIT_ON_ERROR(r) sp_exit_on_error(r,__FILE__,__LINE__)
@@ -41,8 +41,9 @@ void eg_serialport_update(ecs_world_t *world)
 		}
 
 
-		int buadrate = -100;
 		struct sp_port_config *config;
+		int buadrate = -100;
+		enum sp_parity parity;
 
 		r = sp_open(*p, SP_MODE_READ_WRITE);
 		SP_EXIT_ON_ERROR(r);
@@ -56,6 +57,7 @@ void eg_serialport_update(ecs_world_t *world)
 		SP_EXIT_ON_ERROR(r);
 		r = sp_get_config_baudrate(config, &buadrate);
 		SP_EXIT_ON_ERROR(r);
+		sp_get_config_parity(config, &parity);
 		r = sp_close(*p);
 		SP_EXIT_ON_ERROR(r);
 
@@ -63,6 +65,7 @@ void eg_serialport_update(ecs_world_t *world)
 		EgSerialPort port;
 		port.name = "Portname";
 		port.buadrate = buadrate;
+		port.parity = parity;
 		sp_free_config(config);
 		ecs_set_ptr(world, e, EgSerialPort, &port);
 	}
@@ -85,8 +88,21 @@ void FlecsComponentsEgSerialPortImport(ecs_world_t *world)
 	ECS_MODULE(world, FlecsComponentsEgSerialPort);
 
 	ECS_COMPONENT_DEFINE(world, EgSerialPort);
+	ECS_COMPONENT_DEFINE(world, EgSpParity);
 
 	ecs_set_name_prefix(world, "Eg");
+
+	ecs_enum_init(world, &(ecs_enum_desc_t) {
+	.entity.entity = ecs_id(EgSpParity), // Make sure to use existing id
+	.constants = {
+	{ .name = "INVALID", .value = EG_SP_PARITY_INVALID },
+	{ .name = "NONE", .value = EG_SP_PARITY_NONE },
+	{ .name = "ODD", .value = EG_SP_PARITY_ODD },
+	{ .name = "EVEN", .value = EG_SP_PARITY_EVEN },
+	{ .name = "MARK", .value = EG_SP_PARITY_MARK },
+	{ .name = "SPACE", .value = EG_SP_PARITY_SPACE },
+	}
+	});
 
 	ecs_struct_init(world, &(ecs_struct_desc_t) {
 	.entity.entity = ecs_id(EgSerialPort),
@@ -100,6 +116,6 @@ void FlecsComponentsEgSerialPortImport(ecs_world_t *world)
 	.type = ecs_id(ecs_i32_t),
 	.unit = EcsBitsPerSecond
 	},
-	}
-	});
+	{ .name = "parity", .type = ecs_id(EgSpParity) }
+	}});
 }
