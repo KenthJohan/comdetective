@@ -32,32 +32,39 @@ void eg_serialport_update(ecs_world_t *world)
 		//char buf[100];
 		//snprintf(buf, 100, "%10s : %s\n", sp_get_port_name(*p), sp_get_port_description(*p));
 		char * name = sp_get_port_name(*p);
-		ecs_entity_t e = ecs_lookup(world, sp_get_port_name(*p));
-		if (e == 0)
-		{
-			e = ecs_entity_init(world, &(ecs_entity_desc_t) {
+
+		ecs_entity_t e = ecs_entity_init(world, &(ecs_entity_desc_t){
 			.name = name
-			});
-		}
+		});
 
 
 		struct sp_port_config *config;
 		int buadrate = -100;
+		int bits;
 		enum sp_parity parity;
 
 		r = sp_open(*p, SP_MODE_READ_WRITE);
 		SP_EXIT_ON_ERROR(r);
-		r = sp_new_config(&config);
-		SP_EXIT_ON_ERROR(r);
-		//r = sp_set_config_baudrate(config, 9600);
-		//SP_EXIT_ON_ERROR(r);
-		//r = sp_set_config(*p, config);
-		SP_EXIT_ON_ERROR(r);
-		r = sp_get_config(*p, config);
-		SP_EXIT_ON_ERROR(r);
-		r = sp_get_config_baudrate(config, &buadrate);
-		SP_EXIT_ON_ERROR(r);
-		sp_get_config_parity(config, &parity);
+		{
+			r = sp_new_config(&config);
+			{
+				SP_EXIT_ON_ERROR(r);
+				//r = sp_set_config_baudrate(config, 9600);
+				//SP_EXIT_ON_ERROR(r);
+				//r = sp_set_config(*p, config);
+				SP_EXIT_ON_ERROR(r);
+				r = sp_get_config(*p, config);
+				SP_EXIT_ON_ERROR(r);
+				r = sp_get_config_baudrate(config, &buadrate);
+				SP_EXIT_ON_ERROR(r);
+				r = sp_get_config_parity(config, &parity);
+				SP_EXIT_ON_ERROR(r);
+				r = sp_get_config_bits(config, &bits);
+				SP_EXIT_ON_ERROR(r);
+			}
+			sp_free_config(config);
+			SP_EXIT_ON_ERROR(r);
+		}
 		r = sp_close(*p);
 		SP_EXIT_ON_ERROR(r);
 
@@ -65,8 +72,8 @@ void eg_serialport_update(ecs_world_t *world)
 		EgSerialPort port;
 		port.name = "Portname";
 		port.buadrate = buadrate;
-		port.parity = parity;
-		sp_free_config(config);
+		port.bits = bits;
+		port.parity = (EgSpParity)parity;
 		ecs_set_ptr(world, e, EgSerialPort, &port);
 	}
 	sp_free_port_list(port);
@@ -116,6 +123,11 @@ void FlecsComponentsEgSerialPortImport(ecs_world_t *world)
 	.type = ecs_id(ecs_i32_t),
 	.unit = EcsBitsPerSecond
 	},
-	{ .name = "parity", .type = ecs_id(EgSpParity) }
+	{ .name = "parity", .type = ecs_id(EgSpParity) },
+	{
+	.name = "bits",
+	.type = ecs_id(ecs_i32_t),
+	.unit = EcsBits
+	},
 	}});
 }

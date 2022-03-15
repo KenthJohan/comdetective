@@ -34,6 +34,7 @@ static void app_init()
 {
 	ecs_log_set_level(0);
 	ecs_world_t *world = ecs_init();
+	ECS_IMPORT(world, FlecsUnits);
 	ECS_IMPORT(world, FlecsComponentsEgSerialPort);
 	ecs_singleton_set(world, EcsRest, {0});
 

@@ -18,6 +18,7 @@ typedef struct
 	ecs_string_t name;
 	ecs_i32_t buadrate;
 	EgSpParity parity;
+	ecs_i32_t bits;
 } EgSerialPort;
 
 
