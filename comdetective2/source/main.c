@@ -11,11 +11,44 @@ https://www.flecs.dev/explorer/
 #include <gs/util/gs_gui.h>
 #include "flecs.h"
 
-#include <libserialport.h>
 #include <stdio.h>
 #include <string.h>
 
 #include "eg_serialport.h"
+#include "app_components.h"
+#include "app_systems.h"
+
+
+
+
+
+
+static void System_Draw_Serialports(ecs_world_t * world, ecs_query_t *query, gs_gui_context_t * gui)
+{
+	gs_gui_window_begin(gui, "Window", gs_gui_rect(350, 40, 600, 500));
+	gs_gui_container_t* cnt = gs_gui_get_current_container(gui);
+	ecs_iter_t it = ecs_query_iter(world, query);
+	while (ecs_query_next(&it))
+	{
+		EgSerialPort *p = ecs_term(&it, EgSerialPort, 1);
+		for (int i = 0; i < it.count; i ++)
+		{
+			const float m = cnt->body.w * 1.0f;
+			gs_gui_layout_row(gui, 1, (int[]){m}, 0);
+			char const * name = ecs_get_name(world, it.entities[i]);
+			gs_gui_button(gui, name);
+		}
+	}
+	gs_gui_window_end(gui);
+}
+
+
+
+
+
+
+
+
 
 typedef struct
 {
@@ -25,6 +58,8 @@ typedef struct
 	gs_asset_font_t font;
 	gs_gui_style_sheet_t style_sheet;
 	ecs_world_t * world;
+
+	ecs_query_t * query_ports;
 } app_t;
 
 static void gui_cb(gs_gui_context_t* ctx, struct gs_gui_customcommand_t* cmd);
@@ -35,14 +70,26 @@ static void app_init()
 	ecs_log_set_level(0);
 	ecs_world_t *world = ecs_init();
 	ECS_IMPORT(world, FlecsUnits);
-	ECS_IMPORT(world, FlecsComponentsEgSerialPort);
+	ECS_IMPORT(world, Module_EgSerialPort);
+	ECS_IMPORT(world, Module_AppComponents);
+	ECS_IMPORT(world, Module_AppSystems);
 	ecs_singleton_set(world, EcsRest, {0});
+
+
+
+
 
 	app_t* app = gs_user_data(app_t);
 	app->world = world;
 	app->cb = gs_command_buffer_new();
 	gs_gui_init(&app->gui, gs_platform_main_window());
 	app->asset_dir = gs_platform_dir_exists("./assets") ? "./assets" : "../assets";
+
+
+	app->query_ports = ecs_query_init(world, &(ecs_query_desc_t) {
+	.filter.expr = "EgSerialPort",
+	.filter.instanced = true
+	});
 
 	// Load in custom font file and then initialize gui font stash
 	gs_snprintfc(FONT_PATH, 256, "%s/%s", app->asset_dir, "fonts/mc_regular.otf");
@@ -54,42 +101,6 @@ static void app_init()
 
 	// Load style sheet from file now
 	app_load_style_sheet(false);
-}
-
-#define SP_EXIT_ON_ERROR(r) sp_exit_on_error(r,__FILE__,__LINE__)
-static void sp_exit_on_error (enum sp_return r, char const * file, int line)
-{
-	if (r < 0)
-	{
-		fprintf (stderr, "%s:%i: ", file, line);
-		perror (sp_last_error_message ());
-		exit (EXIT_FAILURE);
-	}
-}
-
-static void print_devices(gs_gui_context_t* gui)
-{
-	gs_gui_window_begin(gui, "Window", gs_gui_rect(350, 40, 600, 500));
-	gs_gui_container_t* cnt = gs_gui_get_current_container(gui);
-	const float m = cnt->body.w * 1.0f;
-	gs_gui_layout_row(gui, 1, (int[]){m}, 0);
-	struct sp_port ** port;
-	enum sp_return r;
-	r = sp_list_ports(&port);
-	SP_EXIT_ON_ERROR (r);
-	for (struct sp_port ** p = port; (*p) != NULL; ++p)
-	{
-		char buf[100];
-		//printf ("q %x\n", *p);
-		//printf ("%10s : %s\n", sp_get_port_name(*p), sp_get_port_description(*p));
-		snprintf(buf, 100, "%10s : %s\n", sp_get_port_name(*p), sp_get_port_description(*p));
-		if (gs_gui_button(gui, buf))
-		{
-			printf("%s\n", sp_get_port_name(*p));
-		};
-	}
-	sp_free_port_list(port);
-	gs_gui_window_end(gui);
 }
 
 
@@ -164,7 +175,8 @@ static void app_update()
 	{
 	}
 	gs_gui_window_end(gui);
-	print_devices(gui);
+	//print_devices(gui);
+	System_Draw_Serialports(app->world, app->query_ports, gui);
 	gs_gui_demo_window(gui, gs_gui_rect(200, 100, 500, 250), NULL);
 	gs_gui_style_editor(gui, NULL, gs_gui_rect(350, 250, 300, 240), NULL);
 
@@ -206,6 +218,10 @@ gs_app_desc_t gs_main(int32_t argc, char** argv)
 		.window_height = 760
 	};
 }
+
+
+
+
 
 static void app_load_style_sheet(bool destroy)
 {

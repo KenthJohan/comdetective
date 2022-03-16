@@ -42,6 +42,11 @@ void eg_serialport_update(ecs_world_t *world)
 		int buadrate = -100;
 		int bits;
 		enum sp_parity parity;
+		int usb_vid;
+		int usb_pid;
+
+		sp_get_port_usb_vid_pid(*p, &usb_vid, &usb_pid);
+
 
 		r = sp_open(*p, SP_MODE_READ_WRITE);
 		SP_EXIT_ON_ERROR(r);
@@ -74,6 +79,8 @@ void eg_serialport_update(ecs_world_t *world)
 		port.buadrate = buadrate;
 		port.bits = bits;
 		port.parity = (EgSpParity)parity;
+		port.usb_vid = usb_vid;
+		port.usb_pid = usb_pid;
 		ecs_set_ptr(world, e, EgSerialPort, &port);
 	}
 	sp_free_port_list(port);
@@ -83,16 +90,30 @@ void eg_serialport_update(ecs_world_t *world)
 
 
 
-
-
-
-
-
-
-
-void FlecsComponentsEgSerialPortImport(ecs_world_t *world)
+static void System_Update(ecs_iter_t *it)
 {
-	ECS_MODULE(world, FlecsComponentsEgSerialPort);
+	EgSerialPort *p = ecs_term(it, EgSerialPort, 1);
+	for (int i = 0; i < it->count; i ++)
+	{
+		char const * name = ecs_get_name(it->world, it->entities[i]);
+		struct sp_port * port;
+		enum sp_return r = sp_get_port_by_name(name, &port);
+		if (r == SP_OK)
+		{
+			//https://cpp.hotexamples.com/examples/-/-/sp_free_port/cpp-sp_free_port-function-examples.html
+			sp_free_port(port);
+		}
+	}
+}
+
+
+
+
+
+
+void Module_EgSerialPortImport(ecs_world_t *world)
+{
+	ECS_MODULE(world, Module_EgSerialPort);
 
 	ECS_COMPONENT_DEFINE(world, EgSerialPort);
 	ECS_COMPONENT_DEFINE(world, EgSpParity);
@@ -119,6 +140,14 @@ void FlecsComponentsEgSerialPortImport(ecs_world_t *world)
 	.type = ecs_id(ecs_string_t)
 	},
 	{
+	.name = "usb_vid",
+	.type = ecs_id(ecs_i32_t)
+	},
+	{
+	.name = "usb_pid",
+	.type = ecs_id(ecs_i32_t)
+	},
+	{
 	.name = "buadrate",
 	.type = ecs_id(ecs_i32_t),
 	.unit = EcsBitsPerSecond
@@ -130,4 +159,8 @@ void FlecsComponentsEgSerialPortImport(ecs_world_t *world)
 	.unit = EcsBits
 	},
 	}});
+
+
+	ECS_SYSTEM(world, System_Update, EcsOnUpdate, EgSerialPort);
+
 }
