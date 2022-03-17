@@ -20,12 +20,21 @@ typedef struct
 	ecs_string_t name;
 	ecs_i32_t usb_vid;
 	ecs_i32_t usb_pid;
+	ecs_i32_t usb_bus;
+	ecs_i32_t usb_address;
 	ecs_i32_t buadrate;
 	EgSpParity parity;
 	ecs_i32_t bits;
 } EgSerialPort;
 
+typedef struct
+{
+	int dummy;
+} EgSerialPortSingleton;
 
+
+
+extern ECS_COMPONENT_DECLARE(EgSerialPortSingleton);
 extern ECS_COMPONENT_DECLARE(EgSerialPort);
 extern ECS_COMPONENT_DECLARE(EgSpParity);
 

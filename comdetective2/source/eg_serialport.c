@@ -4,6 +4,7 @@
 #include <stdlib.h>
 
 
+ECS_COMPONENT_DECLARE(EgSerialPortSingleton);
 ECS_COMPONENT_DECLARE(EgSerialPort);
 ECS_COMPONENT_DECLARE(EgSpParity);
 
@@ -13,6 +14,7 @@ void Module_EgSerialPortImport(ecs_world_t *world)
 {
 	ECS_MODULE(world, Module_EgSerialPort);
 
+	ECS_COMPONENT_DEFINE(world, EgSerialPortSingleton);
 	ECS_COMPONENT_DEFINE(world, EgSerialPort);
 	ECS_COMPONENT_DEFINE(world, EgSpParity);
 
@@ -43,6 +45,14 @@ void Module_EgSerialPortImport(ecs_world_t *world)
 	},
 	{
 	.name = "usb_pid",
+	.type = ecs_id(ecs_i32_t)
+	},
+	{
+	.name = "usb_bus",
+	.type = ecs_id(ecs_i32_t)
+	},
+	{
+	.name = "usb_address",
 	.type = ecs_id(ecs_i32_t)
 	},
 	{

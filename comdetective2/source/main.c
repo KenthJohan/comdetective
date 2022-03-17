@@ -1,7 +1,4 @@
-/*
-https://www.flecs.dev/explorer/
-*/
-
+// https://www.flecs.dev/explorer/
 
 #define GS_IMPL
 #define GS_IMMEDIATE_DRAW_IMPL
@@ -76,6 +73,7 @@ static void app_init()
 	ECS_IMPORT(world, Module_AppComponents);
 	ECS_IMPORT(world, Module_AppSystems);
 	ecs_singleton_set(world, EcsRest, {0});
+	ecs_singleton_set(world, EgSerialPortSingleton, {0});
 
 
 
@@ -199,7 +197,6 @@ static void app_update()
 	//Submits to cb
 	gs_graphics_command_buffer_submit(cb);
 
-	eg_serialport_update(app->world);
 	ecs_progress(app->world, 0);
 }
 
