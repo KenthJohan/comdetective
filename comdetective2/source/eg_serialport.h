@@ -1,3 +1,5 @@
+// The implementation of serialport is not here.
+// This will only contain component of serialport.
 #pragma once
 #include "flecs.h"
 
@@ -30,4 +32,4 @@ extern ECS_COMPONENT_DECLARE(EgSpParity);
 
 void Module_EgSerialPortImport(ecs_world_t *world);
 
-void eg_serialport_update(ecs_world_t *world);
+

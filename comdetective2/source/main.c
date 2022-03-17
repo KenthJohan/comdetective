@@ -14,6 +14,7 @@ https://www.flecs.dev/explorer/
 #include <stdio.h>
 #include <string.h>
 
+#include "eg_libserialport.h"
 #include "eg_serialport.h"
 #include "app_components.h"
 #include "app_systems.h"
@@ -71,6 +72,7 @@ static void app_init()
 	ecs_world_t *world = ecs_init();
 	ECS_IMPORT(world, FlecsUnits);
 	ECS_IMPORT(world, Module_EgSerialPort);
+	ECS_IMPORT(world, Module_EgLibSerialPort);
 	ECS_IMPORT(world, Module_AppComponents);
 	ECS_IMPORT(world, Module_AppSystems);
 	ecs_singleton_set(world, EcsRest, {0});

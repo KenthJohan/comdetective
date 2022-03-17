@@ -20,6 +20,7 @@ HEADERS += source/*.h
 SOURCES += source/main.c
 SOURCES += source/flecs.c
 SOURCES += source/eg_serialport.c
+SOURCES += source/eg_libserialport.c
 SOURCES += source/app_systems.c
 SOURCES += source/app_components.c
 
