@@ -291,6 +291,13 @@ int main(int argc, char *argv[])
 	if (r < 0)
 		return r;
 
+	if (!libusb_has_capability (LIBUSB_CAP_HAS_HOTPLUG)) {
+		printf ("Hotplug capabilities are not supported on this platform\n");
+		libusb_exit (NULL);
+		return EXIT_FAILURE;
+	}
+
+
 	if (device_name) {
 		r = test_wrapped_device(device_name);
 	} else {
