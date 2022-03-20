@@ -25,6 +25,7 @@ typedef struct
 	ecs_i32_t buadrate;
 	EgSpParity parity;
 	ecs_i32_t bits;
+	ecs_bool_t exists;
 } EgSerialPort;
 
 typedef struct

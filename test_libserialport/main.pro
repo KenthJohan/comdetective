@@ -6,6 +6,7 @@ CONFIG += static
 
 SOURCES += main.c
 SOURCES += flecs.c
+SOURCES += ../comdetective2/source/eg_serialport.c
 
 INCLUDEPATH += C:/msys64/mingw64/include
 HEADERS += *.h

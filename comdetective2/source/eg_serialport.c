@@ -66,5 +66,9 @@ void Module_EgSerialPortImport(ecs_world_t *world)
 	.type = ecs_id(ecs_i32_t),
 	.unit = EcsBits
 	},
+	{
+	.name = "exists",
+	.type = ecs_id(ecs_bool_t)
+	},
 	}});
 }
