@@ -15,5 +15,5 @@ extern ECS_COMPONENT_DECLARE(App_GUI_Window);
 
 
 
-void Module_AppComponentsImport(ecs_world_t *world);
+void AppComponentsImport(ecs_world_t *world);
 

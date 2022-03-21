@@ -68,10 +68,10 @@ static void app_init()
 	ecs_log_set_level(0);
 	ecs_world_t *world = ecs_init();
 	ECS_IMPORT(world, FlecsUnits);
-	ECS_IMPORT(world, Module_EgSerialPort);
-	ECS_IMPORT(world, Module_EgLibSerialPort);
-	ECS_IMPORT(world, Module_AppComponents);
-	ECS_IMPORT(world, Module_AppSystems);
+	ECS_IMPORT(world, EgSerialport);
+	ECS_IMPORT(world, EgLibserialport);
+	ECS_IMPORT(world, AppComponents);
+	ECS_IMPORT(world, AppSystems);
 	ecs_singleton_set(world, EcsRest, {0});
 	ecs_singleton_set(world, EgSerialPortSingleton, {0});
 

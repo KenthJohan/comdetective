@@ -4,5 +4,5 @@
 
 
 
-void Module_EgLibSerialPortImport(ecs_world_t *world);
+void EgLibserialportImport(ecs_world_t *world);
 

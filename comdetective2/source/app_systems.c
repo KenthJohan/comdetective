@@ -13,11 +13,11 @@ static void App_GUI_Window_Draw(ecs_iter_t *it)
 }
 
 
-void Module_AppSystemsImport(ecs_world_t *world)
+void AppSystemsImport(ecs_world_t *world)
 {
-	ECS_MODULE(world, Module_AppSystems);
-	ECS_IMPORT(world, Module_EgSerialPort);
-	ECS_IMPORT(world, Module_AppComponents);
+	ECS_MODULE(world, AppSystems);
+	ECS_IMPORT(world, EgSerialport);
+	ECS_IMPORT(world, AppComponents);
 
 
 	ECS_SYSTEM(world, App_GUI_Window_Draw, EcsOnUpdate,

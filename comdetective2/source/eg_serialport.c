@@ -7,18 +7,20 @@
 ECS_COMPONENT_DECLARE(EgSerialPortSingleton);
 ECS_COMPONENT_DECLARE(EgSerialPort);
 ECS_COMPONENT_DECLARE(EgSpParity);
+ECS_COMPONENT_DECLARE(EgSpStatus);
 
 
 
-void Module_EgSerialPortImport(ecs_world_t *world)
+void EgSerialportImport(ecs_world_t *world)
 {
-	ECS_MODULE(world, Module_EgSerialPort);
+	ECS_MODULE(world, EgSerialport);
+	ecs_set_name_prefix(world, "Eg");
 
 	ECS_COMPONENT_DEFINE(world, EgSerialPortSingleton);
 	ECS_COMPONENT_DEFINE(world, EgSerialPort);
 	ECS_COMPONENT_DEFINE(world, EgSpParity);
+	ECS_COMPONENT_DEFINE(world, EgSpStatus);
 
-	ecs_set_name_prefix(world, "Eg");
 
 	ecs_enum_init(world, &(ecs_enum_desc_t) {
 	.entity.entity = ecs_id(EgSpParity), // Make sure to use existing id
@@ -29,6 +31,16 @@ void Module_EgSerialPortImport(ecs_world_t *world)
 	{ .name = "EVEN", .value = EG_SP_PARITY_EVEN },
 	{ .name = "MARK", .value = EG_SP_PARITY_MARK },
 	{ .name = "SPACE", .value = EG_SP_PARITY_SPACE },
+	}
+	});
+
+	ecs_enum_init(world, &(ecs_enum_desc_t) {
+	.entity.entity = ecs_id(EgSpStatus), // Make sure to use existing id
+	.constants = {
+	{ .name = "UNDEFINED", .value = EG_SP_PARITY_INVALID },
+	{ .name = "CLOSE", .value = EG_SP_PARITY_NONE },
+	{ .name = "OPEN", .value = EG_SP_PARITY_ODD },
+	{ .name = "ERROR", .value = EG_SP_PARITY_EVEN }
 	}
 	});
 
@@ -67,8 +79,8 @@ void Module_EgSerialPortImport(ecs_world_t *world)
 	.unit = EcsBits
 	},
 	{
-	.name = "exists",
-	.type = ecs_id(ecs_bool_t)
+	.name = "status",
+	.type = ecs_id(EgSpStatus)
 	},
 	}});
 }

@@ -13,6 +13,12 @@ typedef enum {
 	EG_SP_PARITY_SPACE = 4
 } EgSpParity;
 
+typedef enum {
+	EG_SP_STATUS_UNDEFINED = 0,
+	EG_SP_STATUS_CLOSED = 1,
+	EG_SP_STATUS_OPEN = 2,
+	EG_SP_STATUS_ERROR = 3
+} EgSpStatus;
 
 
 typedef struct
@@ -25,7 +31,7 @@ typedef struct
 	ecs_i32_t buadrate;
 	EgSpParity parity;
 	ecs_i32_t bits;
-	ecs_bool_t exists;
+	EgSpStatus status;
 } EgSerialPort;
 
 typedef struct
@@ -35,11 +41,14 @@ typedef struct
 
 
 
+
+
 extern ECS_COMPONENT_DECLARE(EgSerialPortSingleton);
 extern ECS_COMPONENT_DECLARE(EgSerialPort);
 extern ECS_COMPONENT_DECLARE(EgSpParity);
+extern ECS_COMPONENT_DECLARE(EgSpStatus);
 
 
-void Module_EgSerialPortImport(ecs_world_t *world);
+void EgSerialportImport(ecs_world_t *world);
 
 

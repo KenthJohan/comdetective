@@ -3,5 +3,5 @@
 
 
 
-void Module_AppSystemsImport(ecs_world_t *world);
+void AppSystemsImport(ecs_world_t *world);
 

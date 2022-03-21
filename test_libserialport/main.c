@@ -11,10 +11,11 @@ void tf1(ecs_iter_t *it)
 	EgSerialPort * p = ecs_term(it, EgSerialPort, 1);
 	for (int i = 0; i < it->count; i ++)
 	{
-		p[i].exists = false;
 		ecs_entity_t e = it->entities[i];
-		char const * name = ecs_get_name(it->world, e);
+		p[i].exists = false;
 		ecs_enable_component(it->world, e, EgSerialPort, false);
+
+		char const * name = ecs_get_name(it->world, e);
 		printf("%s: ecs_is_component_enabled: %d\n", name, ecs_is_component_enabled(it->world, e, EgSerialPort));
 	}
 }
@@ -73,9 +74,10 @@ int main(int argc, char **argv)
 
 	ecs_entity_t s1 = ecs_system_init(world, &(ecs_system_desc_t)
 	{
+	.entity.name = "",
 	.query.filter.expr = "[inout] EgSerialPort",
 	.callback = tf1,
-	.entity.add = { EcsOnUpdate },
+	.entity.add = { EcsPreUpdate },
 	.interval = 1.0f
 	});
 

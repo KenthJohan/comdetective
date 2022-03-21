@@ -59,7 +59,22 @@ static void get_info(struct sp_port * port, EgSerialPort * egport)
 }
 
 
-static void System_Pull_Plugged(ecs_iter_t *it)
+
+static void System_Ports_Reset(ecs_iter_t *it)
+{
+	EgSerialPort * p = ecs_term(it, EgSerialPort, 1);
+	for (int i = 0; i < it->count; i ++)
+	{
+		ecs_entity_t e = it->entities[i];
+		p[i].status = EG_SP_STATUS_UNDEFINED;
+		ecs_enable_component(it->world, e, EgSerialPort, false);
+		//char const * name = ecs_get_name(it->world, e);
+		//printf("%s: ecs_is_component_enabled: %d\n", name, ecs_is_component_enabled(it->world, e, EgSerialPort));
+	}
+}
+
+
+static void System_Ports_Pull(ecs_iter_t *it)
 {
 	struct sp_port ** port;
 	enum sp_return r;
@@ -70,20 +85,26 @@ static void System_Pull_Plugged(ecs_iter_t *it)
 		//char buf[100];
 		//snprintf(buf, 100, "%10s : %s\n", sp_get_port_name(*p), sp_get_port_description(*p));
 		char * name = sp_get_port_name(*p);
+		ecs_entity_t e = ecs_entity_init(it->world, &(ecs_entity_desc_t){
+		.name = name
+		});
+		ecs_enable_component(it->world, e, EgSerialPort, true);
+		EgSerialPort * egport = ecs_get_mut(it->world, e, EgSerialPort, NULL);
+		egport->status = EG_SP_STATUS_CLOSED;
+
+
+		/*
 		ecs_entity_t e = ecs_lookup(it->world, name);
 		if (e == 0)
 		{
-			e = ecs_entity_init(it->world, &(ecs_entity_desc_t){
-			.name = name
-			});
 			r = sp_open(*p, SP_MODE_READ_WRITE);
 			SP_EXIT_ON_ERROR(r);
-			EgSerialPort egport;
 			get_info(*p, &egport);
 			ecs_set_ptr(it->world, e, EgSerialPort, &egport);
 			r = sp_close(*p);
 			SP_EXIT_ON_ERROR(r);
 		}
+		*/
 	}
 	sp_free_port_list(port);
 }
@@ -91,75 +112,36 @@ static void System_Pull_Plugged(ecs_iter_t *it)
 
 
 
-//typedef void (*ecs_iter_action_t)(ecs_iter_t *it);
-static void System_Pull_Unplugged(ecs_iter_t *it)
+
+
+
+
+
+
+
+void EgLibserialportImport(ecs_world_t *world)
 {
-	EgSerialPort *p = ecs_term(it, EgSerialPort, 1);
-	for (int i = 0; i < it->count; i ++)
-	{
-		char const * name = ecs_get_name(it->world, it->entities[i]);
-		struct sp_port * port;
-		enum sp_return r;
-		r = sp_get_port_by_name(name, &port);
-		if (r != SP_OK)
-		{
-			ecs_delete(it->world, it->entities[i]);
-			continue;
-		}
-		r = sp_open(port, SP_MODE_READ_WRITE);
-		if (r != SP_OK)
-		{
-			ecs_delete(it->world, it->entities[i]);
-		}
-		else
-		{
-			r = sp_close(port);
-			SP_EXIT_ON_ERROR(r);
-		}
-		sp_free_port(port);
-	}
-}
-
-
-/*
-static void Trigger1(ecs_iter_t *it)
-{
-	EgSerialPort *p = ecs_term(it, EgSerialPort, 1);
-	for (int i = 0; i < it->count; i ++)
-	{
-
-	}
-}
-*/
-
-
-
-void Module_EgLibSerialPortImport(ecs_world_t *world)
-{
-	ECS_MODULE(world, Module_EgLibSerialPort);
+	ECS_MODULE(world, EgLibserialport);
+	ecs_set_name_prefix(world, "Eg");
 
 	// This systems pulls avialable USB serial ports.
-	// It will cause a initial lag for every new port.
-	// If a USB serial port does not exist as entity then it will
-	// be added then opened then retreive info then closed.
 	// TODO: Only trigger this system when a USB serial port is plugged.
-	ecs_entity_t s1 = ecs_system_init(world, &(ecs_system_desc_t)
+	ecs_system_init(world, &(ecs_system_desc_t)
 	{
+	.entity.name = "System_Ports_Pull",
 	.query.filter.terms = {{ .id = ecs_id(EgSerialPortSingleton) }},
-	.callback = System_Pull_Plugged,
+	.callback = System_Ports_Pull,
 	.entity.add = { EcsOnUpdate },
 	.interval = 1.0f
 	});
 
-	// This system causes lag because it opens and closes USB serial ports.
-	// This is to check if a USB serial port has been unplugged.
-	// If the USB serial port has been unplugged then the corresponding entity will be deleted.
-	// TODO: Only trigger this system when a USB serial port is unplugged.
-	ecs_entity_t s2 = ecs_system_init(world, &(ecs_system_desc_t)
+	// This system resets the port information so that
+	ecs_system_init(world, &(ecs_system_desc_t)
 	{
+	.entity.name = "System_Ports_Reset",
 	.query.filter.terms = {{ .id = ecs_id(EgSerialPort) }},
-	.callback = System_Pull_Unplugged,
-	.entity.add = { EcsOnUpdate },
+	.callback = System_Ports_Reset,
+	.entity.add = { EcsPreUpdate },
 	.interval = 1.0f
 	});
 
