@@ -15,9 +15,11 @@ typedef enum {
 
 typedef enum {
 	EG_SP_STATUS_UNDEFINED = 0,
-	EG_SP_STATUS_CLOSED = 1,
-	EG_SP_STATUS_OPEN = 2,
-	EG_SP_STATUS_ERROR = 3
+	EG_SP_STATUS_OPEN_ERROR = 1,
+	EG_SP_STATUS_CLOSING = 2,
+	EG_SP_STATUS_CLOSED = 3,
+	EG_SP_STATUS_OPEN = 4,
+	EG_SP_STATUS_OPENING = 5,
 } EgSpStatus;
 
 
@@ -32,6 +34,7 @@ typedef struct
 	EgSpParity parity;
 	ecs_i32_t bits;
 	EgSpStatus status;
+	void * _internal;
 } EgSerialPort;
 
 typedef struct

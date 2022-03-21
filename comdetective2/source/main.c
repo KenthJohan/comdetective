@@ -34,7 +34,14 @@ static void System_Draw_Serialports(ecs_world_t * world, ecs_query_t *query, gs_
 			const float m = cnt->body.w * 1.0f;
 			gs_gui_layout_row(gui, 1, (int[]){m}, 0);
 			char const * name = ecs_get_name(world, it.entities[i]);
-			gs_gui_button(gui, name);
+			if (name)
+			{
+				gs_gui_button(gui, name);
+			}
+			else
+			{
+				gs_gui_button(gui, "Unknown");
+			}
 		}
 	}
 	gs_gui_window_end(gui);

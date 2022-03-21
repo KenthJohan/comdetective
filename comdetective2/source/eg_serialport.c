@@ -37,10 +37,12 @@ void EgSerialportImport(ecs_world_t *world)
 	ecs_enum_init(world, &(ecs_enum_desc_t) {
 	.entity.entity = ecs_id(EgSpStatus), // Make sure to use existing id
 	.constants = {
-	{ .name = "UNDEFINED", .value = EG_SP_PARITY_INVALID },
-	{ .name = "CLOSE", .value = EG_SP_PARITY_NONE },
-	{ .name = "OPEN", .value = EG_SP_PARITY_ODD },
-	{ .name = "ERROR", .value = EG_SP_PARITY_EVEN }
+	{ .name = "UNDEFINED", .value = EG_SP_STATUS_UNDEFINED },
+	{ .name = "OPEN_ERROR", .value = EG_SP_STATUS_OPEN_ERROR },
+	{ .name = "CLOSING", .value = EG_SP_STATUS_CLOSING },
+	{ .name = "CLOSED", .value = EG_SP_STATUS_CLOSED },
+	{ .name = "OPEN", .value = EG_SP_STATUS_OPEN },
+	{ .name = "OPENING", .value = EG_SP_STATUS_OPENING },
 	}
 	});
 
@@ -81,6 +83,10 @@ void EgSerialportImport(ecs_world_t *world)
 	{
 	.name = "status",
 	.type = ecs_id(EgSpStatus)
+	},
+	{
+	.name = "_internal",
+	.type = ecs_id(ecs_uptr_t)
 	},
 	}});
 }

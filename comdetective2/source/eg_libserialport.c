@@ -6,13 +6,17 @@
 #include <stdlib.h>
 
 
+
+struct sp_event_set * global_events = NULL;
+
+
 #define SP_EXIT_ON_ERROR(r) sp_exit_on_error(r,__FILE__,__LINE__)
 static void sp_exit_on_error (enum sp_return r, char const * file, int line)
 {
 	if (r < 0)
 	{
-		fprintf (stderr, "%s:%i: ", file, line);
-		perror (sp_last_error_message ());
+		fprintf (stderr, "%s:%i: %i:%s", file, line, r, sp_last_error_message());
+		perror ("");
 		exit (EXIT_FAILURE);
 	}
 }
@@ -59,18 +63,22 @@ static void get_info(struct sp_port * port, EgSerialPort * egport)
 }
 
 
-
 static void System_Ports_Reset(ecs_iter_t *it)
 {
+/*
 	EgSerialPort * p = ecs_term(it, EgSerialPort, 1);
 	for (int i = 0; i < it->count; i ++)
 	{
 		ecs_entity_t e = it->entities[i];
-		p[i].status = EG_SP_STATUS_UNDEFINED;
-		ecs_enable_component(it->world, e, EgSerialPort, false);
+		if (p[i].status != EG_SP_STATUS_OPEN)
+		{
+			p[i].status = EG_SP_STATUS_UNDEFINED;
+			ecs_enable_component(it->world, e, EgSerialPort, false);
+		}
 		//char const * name = ecs_get_name(it->world, e);
 		//printf("%s: ecs_is_component_enabled: %d\n", name, ecs_is_component_enabled(it->world, e, EgSerialPort));
 	}
+	*/
 }
 
 
@@ -82,36 +90,91 @@ static void System_Ports_Pull(ecs_iter_t *it)
 	SP_EXIT_ON_ERROR(r);
 	for (struct sp_port ** p = port; (*p) != NULL; ++p)
 	{
-		//char buf[100];
-		//snprintf(buf, 100, "%10s : %s\n", sp_get_port_name(*p), sp_get_port_description(*p));
 		char * name = sp_get_port_name(*p);
 		ecs_entity_t e = ecs_entity_init(it->world, &(ecs_entity_desc_t){
-		.name = name
+		.name = name,
+		.add = {ecs_id(EgSerialPort)}
 		});
-		ecs_enable_component(it->world, e, EgSerialPort, true);
-		EgSerialPort * egport = ecs_get_mut(it->world, e, EgSerialPort, NULL);
-		egport->status = EG_SP_STATUS_CLOSED;
-
-
-		/*
-		ecs_entity_t e = ecs_lookup(it->world, name);
-		if (e == 0)
-		{
-			r = sp_open(*p, SP_MODE_READ_WRITE);
-			SP_EXIT_ON_ERROR(r);
-			get_info(*p, &egport);
-			ecs_set_ptr(it->world, e, EgSerialPort, &egport);
-			r = sp_close(*p);
-			SP_EXIT_ON_ERROR(r);
-		}
-		*/
 	}
 	sp_free_port_list(port);
 }
 
 
+static void System_Ports_Read(ecs_iter_t *it)
+{
+	enum sp_return r;
+	EgSerialPort * p = ecs_term(it, EgSerialPort, 1);
+	for (int i = 0; i < it->count; i ++)
+	{
+		char const * name = ecs_get_name(it->world, it->entities[i]);
+
+		//Temporary:
+		if (p[i].status == EG_SP_STATUS_UNDEFINED)
+		{
+			printf("Set status to EG_SP_STATUS_OPEN\n");
+			p[i].status = EG_SP_STATUS_OPENING;
+		}
+
+		if (p[i].status == EG_SP_STATUS_OPENING)
+		{
+			struct sp_port * port = NULL;
+			r = sp_get_port_by_name(name, &port);
+			if (r == SP_OK)
+			{
+				r = sp_open(port, SP_MODE_READ);
+				printf("sp_open %s:%i\n", name, r);
+				if (r == SP_OK)
+				{
+					p[i].status = EG_SP_STATUS_OPEN;
+					r = sp_set_baudrate(port, 115200);
+					SP_EXIT_ON_ERROR(r);
+					r = sp_set_bits(port, 8);
+					SP_EXIT_ON_ERROR(r);
+					r = sp_set_parity(port, SP_PARITY_NONE);
+					SP_EXIT_ON_ERROR(r);
+					r = sp_set_stopbits(port, 1);
+					SP_EXIT_ON_ERROR(r);
+					r = sp_set_flowcontrol(port, SP_FLOWCONTROL_NONE);
+					SP_EXIT_ON_ERROR(r);
+					r = sp_add_port_events(global_events, port, SP_EVENT_RX_READY);
+					SP_EXIT_ON_ERROR(r);
+					p[i]._internal = port;
+				}
+				else
+				{
+					p[i].status = EG_SP_STATUS_OPEN_ERROR;
+				}
+			}
+		}
 
 
+		if (p[i].status == EG_SP_STATUS_OPEN)
+		{
+			struct sp_port * port = p[i]._internal;
+			int bufsize = 100;
+			char buf[100] = {0};
+			int r;
+			//r = sp_input_waiting(port);
+			//printf("sp_input_waiting %i %s\n", r, sp_last_error_message());
+			r = sp_nonblocking_read(port, buf, bufsize);
+			printf("sp_nonblocking_read %i\n", r);
+			if (r > 0)
+			{
+				printf("Reading %.*s\n", r, buf);
+			}
+		}
+
+	}
+}
+
+
+static void * reader_thread(void * arg)
+{
+	while(1)
+	{
+		sp_wait(global_events, 10000);
+	}
+}
 
 
 
@@ -123,6 +186,15 @@ void EgLibserialportImport(ecs_world_t *world)
 {
 	ECS_MODULE(world, EgLibserialport);
 	ecs_set_name_prefix(world, "Eg");
+
+
+
+	{
+		enum sp_return r;
+		sp_new_event_set(&global_events);
+		SP_EXIT_ON_ERROR(r);
+	}
+
 
 	// This systems pulls avialable USB serial ports.
 	// TODO: Only trigger this system when a USB serial port is plugged.
@@ -136,6 +208,7 @@ void EgLibserialportImport(ecs_world_t *world)
 	});
 
 	// This system resets the port information so that
+	/*
 	ecs_system_init(world, &(ecs_system_desc_t)
 	{
 	.entity.name = "System_Ports_Reset",
@@ -144,13 +217,25 @@ void EgLibserialportImport(ecs_world_t *world)
 	.entity.add = { EcsPreUpdate },
 	.interval = 1.0f
 	});
-
-	/*
-	ecs_entity_t t1 = ecs_trigger_init(world, &(ecs_trigger_desc_t){
-	.term.id = ecs_id(EgSerialPort),
-	.events = {EcsOnAdd},
-	.callback = Trigger1
-	});
 	*/
+
+
+	// This system resets the port information so that
+	ecs_system_init(world, &(ecs_system_desc_t)
+	{
+	.entity.name = "System_Ports_Read",
+	.query.filter.expr = "[inout] EgSerialPort",
+	.callback = System_Ports_Read,
+	.entity.add = { EcsOnUpdate },
+	.interval = 1.0f
+	});
+
+	//ecs_os_thread_new(reader_thread, NULL);
+
+
+	ecs_entity_init(world, &(ecs_entity_desc_t){
+	.name = "Test",
+	.add = {ecs_id(EgSerialPort)}
+	});
 
 }
