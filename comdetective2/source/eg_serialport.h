@@ -22,6 +22,20 @@ typedef enum {
 	EG_SP_STATUS_OPENING = 5,
 } EgSpStatus;
 
+static char const * EgSpStatus_tostr(EgSpStatus status)
+{
+	switch (status)
+	{
+	case EG_SP_STATUS_UNDEFINED: return "UNDEFINED";
+	case EG_SP_STATUS_OPEN_ERROR: return "OPEN_ERROR";
+	case EG_SP_STATUS_CLOSING: return "CLOSING";
+	case EG_SP_STATUS_CLOSED: return "CLOSED";
+	case EG_SP_STATUS_OPEN: return "OPEN";
+	case EG_SP_STATUS_OPENING: return "OPENING";
+	default: return "";
+	}
+}
+
 
 typedef struct
 {

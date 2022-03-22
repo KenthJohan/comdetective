@@ -103,21 +103,38 @@ static void System_Ports_Pull(ecs_iter_t *it)
 static void System_Ports_Read(ecs_iter_t *it)
 {
 	enum sp_return r;
+	struct sp_port * port = NULL;
 	EgSerialPort * p = ecs_term(it, EgSerialPort, 1);
 	for (int i = 0; i < it->count; i ++)
 	{
 		char const * name = ecs_get_name(it->world, it->entities[i]);
 
 		//Temporary:
+		/*
 		if (p[i].status == EG_SP_STATUS_UNDEFINED)
 		{
 			printf("Set status to EG_SP_STATUS_OPEN\n");
 			p[i].status = EG_SP_STATUS_OPENING;
 		}
+		*/
 
-		if (p[i].status == EG_SP_STATUS_OPENING)
+		switch(p[i].status)
 		{
-			struct sp_port * port = NULL;
+		case EG_SP_STATUS_UNDEFINED:
+			p[i].status = EG_SP_STATUS_CLOSED;
+			break;
+
+		case EG_SP_STATUS_CLOSING:
+			port = p[i]._internal;
+			r = sp_close(port);
+			printf("sp_close %s:%i\n", name, r);
+			SP_EXIT_ON_ERROR(r);
+			sp_free_port(port);
+			p[i]._internal = NULL;
+			p[i].status = EG_SP_STATUS_CLOSED;
+			break;
+
+		case EG_SP_STATUS_OPENING:
 			r = sp_get_port_by_name(name, &port);
 			if (r == SP_OK)
 			{
@@ -145,24 +162,33 @@ static void System_Ports_Read(ecs_iter_t *it)
 					p[i].status = EG_SP_STATUS_OPEN_ERROR;
 				}
 			}
-		}
+			break;
 
-
-		if (p[i].status == EG_SP_STATUS_OPEN)
-		{
-			struct sp_port * port = p[i]._internal;
-			int bufsize = 100;
-			char buf[100] = {0};
-			int r;
-			//r = sp_input_waiting(port);
-			//printf("sp_input_waiting %i %s\n", r, sp_last_error_message());
-			r = sp_nonblocking_read(port, buf, bufsize);
-			printf("sp_nonblocking_read %i\n", r);
-			if (r > 0)
+		case EG_SP_STATUS_OPEN:
+			if(p[i]._internal)
 			{
-				printf("Reading %.*s\n", r, buf);
+				port = p[i]._internal;
+				int bufsize = 100;
+				char buf[100] = {0};
+				int r;
+				//r = sp_input_waiting(port);
+				//printf("sp_input_waiting %i %s\n", r, sp_last_error_message());
+				r = sp_nonblocking_read(port, buf, bufsize);
+				//printf("sp_nonblocking_read %i\n", r);
+				if (r > 0)
+				{
+					printf("Port %s: %.*s\n", name, r, buf);
+				}
 			}
+			break;
+
+
+		default:
+			break;
+
 		}
+
+
 
 	}
 }

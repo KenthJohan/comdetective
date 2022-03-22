@@ -33,14 +33,22 @@ static void System_Draw_Serialports(ecs_world_t * world, ecs_query_t *query, gs_
 		{
 			const float m = cnt->body.w * 1.0f;
 			gs_gui_layout_row(gui, 1, (int[]){m}, 0);
+
 			char const * name = ecs_get_name(world, it.entities[i]);
-			if (name)
+			if (name == NULL) {continue;}
+
+			char buf[100];
+			snprintf(buf, 100, "%s (%s)", name, EgSpStatus_tostr(p[i].status));
+			if (gs_gui_button(gui, buf))
 			{
-				gs_gui_button(gui, name);
-			}
-			else
-			{
-				gs_gui_button(gui, "Unknown");
+				if (p[i].status == EG_SP_STATUS_CLOSED)
+				{
+					p[i].status = EG_SP_STATUS_OPENING;
+				}
+				else if (p[i].status == EG_SP_STATUS_OPEN)
+				{
+					p[i].status = EG_SP_STATUS_CLOSING;
+				}
 			}
 		}
 	}
@@ -112,86 +120,20 @@ static void app_init()
 
 
 
-static void test_window(gs_gui_context_t* gui)
-{
-	gs_gui_window_begin(gui, "Window", gs_gui_rect(350, 40, 600, 500));
-	{
-		// Cache the current container
-		gs_gui_container_t* cnt = gs_gui_get_current_container(gui);
-		const float m = cnt->body.w * 1.0f;
-
-		gs_gui_layout_row(gui, 1, (int[]){m}, 0);
-
-		gs_gui_layout_row(gui, 2, (int[]){200, 0}, 0);
-
-		gs_gui_text(gui, "A regular element button.");
-		gs_gui_button(gui, "button1");
-
-		gs_gui_text(gui, "A regular element label.");
-		gs_gui_label(gui, "label");
-
-		gs_gui_text(gui, "Button with classes: {.c0 .btn}");
-		gs_gui_button_ex(gui, "button##btn",
-		&(gs_gui_selector_desc_t){.classes = {"c0", "btn"}}, 0x00);
-
-		gs_gui_text(gui, "Label with id #lbl and class .c0");
-		gs_gui_label_ex(gui, "label##lbl",
-		&(gs_gui_selector_desc_t){.id = "lbl", .classes ={"c0"}}, 0x00);
-
-		// gs_gui_layout_row(gui, 2, (int[]){m, -m}, 0);
-		// gs_gui_layout_next(gui); // Empty space at beginning
-		gs_gui_layout_row(gui, 1, (int[]){0}, 0);
-		if (gs_gui_button_ex(gui, "reload style sheet", &(gs_gui_selector_desc_t){.classes = {"reload_btn"}}, 0x00)) {
-			app_load_style_sheet(true);
-		}
-	}
-	gs_gui_window_end(gui);
-}
-
-
 static void app_update()
 {
 	app_t* app = gs_user_data(app_t);
 	gs_command_buffer_t* cb = &app->cb;
 	gs_gui_context_t* gui = &app->gui;
 	const gs_vec2 fbs = gs_platform_framebuffer_sizev(gs_platform_main_window());
-	const float t = gs_platform_elapsed_time();
-	const gs_gui_style_sheet_t* ss = &app->style_sheet;
+	if (gs_platform_key_pressed(GS_KEYCODE_ESC)) {gs_quit();}
 
-	if (gs_platform_key_pressed(GS_KEYCODE_ESC)) {
-		gs_quit();
-	}
-
-	// Begin new frame for gui
 	gs_gui_begin(gui, fbs);
-
-	const gs_vec2 ws = gs_v2(500.f, 300.f);
-	int32_t opt =
-	GS_GUI_OPT_NOCLIP |
-	GS_GUI_OPT_NOFRAME |
-	GS_GUI_OPT_FORCESETRECT |
-	GS_GUI_OPT_NOTITLE |
-	GS_GUI_OPT_DOCKSPACE |
-	//GS_GUI_OPT_FULLSCREEN |
-	GS_GUI_OPT_NOMOVE |
-	GS_GUI_OPT_NOBRINGTOFRONT |
-	GS_GUI_OPT_NOFOCUS |
-	GS_GUI_OPT_NORESIZE;
-	gs_gui_window_begin_ex(gui, "#root", gs_gui_rect(350, 40, 600, 500), NULL, NULL, opt);
-	//gs_gui_window_begin(gui, "Window", gs_gui_rect((fbs.x - ws.x) * 0.5f, (fbs.y - ws.y) * 0.5f, ws.x, ws.y));
-	{
-	}
-	gs_gui_window_end(gui);
-	//print_devices(gui);
 	System_Draw_Serialports(app->world, app->query_ports, gui);
-	gs_gui_demo_window(gui, gs_gui_rect(200, 100, 500, 250), NULL);
-	gs_gui_style_editor(gui, NULL, gs_gui_rect(350, 250, 300, 240), NULL);
-
-
-	// End gui frame
+	//gs_gui_demo_window(gui, gs_gui_rect(200, 100, 500, 250), NULL);
+	//gs_gui_style_editor(gui, NULL, gs_gui_rect(350, 250, 300, 240), NULL);
 	gs_gui_end(gui);
 
-	// Do rendering
 	gs_graphics_clear_desc_t clear = {.actions = &(gs_graphics_clear_action_t){.color = {0.05f, 0.05f, 0.05f, 1.f}}};
 	gs_graphics_renderpass_begin(cb, (gs_handle(gs_graphics_renderpass_t)){0});
 	{
@@ -200,10 +142,7 @@ static void app_update()
 		gs_gui_render(gui, cb);
 	}
 	gs_graphics_renderpass_end(cb);
-
-	//Submits to cb
 	gs_graphics_command_buffer_submit(cb);
-
 	ecs_progress(app->world, 0);
 }
 
