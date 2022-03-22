@@ -15,11 +15,12 @@ typedef enum {
 
 typedef enum {
 	EG_SP_STATUS_UNDEFINED = 0,
-	EG_SP_STATUS_OPEN_ERROR = 1,
-	EG_SP_STATUS_CLOSING = 2,
-	EG_SP_STATUS_CLOSED = 3,
-	EG_SP_STATUS_OPEN = 4,
-	EG_SP_STATUS_OPENING = 5,
+	EG_SP_STATUS_ERROR = 1,
+	EG_SP_STATUS_ERROR_OPEN = 2,
+	EG_SP_STATUS_CLOSING = 3,
+	EG_SP_STATUS_CLOSED = 4,
+	EG_SP_STATUS_OPEN = 5,
+	EG_SP_STATUS_OPENING = 6,
 } EgSpStatus;
 
 static char const * EgSpStatus_tostr(EgSpStatus status)
@@ -27,7 +28,8 @@ static char const * EgSpStatus_tostr(EgSpStatus status)
 	switch (status)
 	{
 	case EG_SP_STATUS_UNDEFINED: return "UNDEFINED";
-	case EG_SP_STATUS_OPEN_ERROR: return "OPEN_ERROR";
+	case EG_SP_STATUS_ERROR: return "ERROR";
+	case EG_SP_STATUS_ERROR_OPEN: return "ERROR_OPEN";
 	case EG_SP_STATUS_CLOSING: return "CLOSING";
 	case EG_SP_STATUS_CLOSED: return "CLOSED";
 	case EG_SP_STATUS_OPEN: return "OPEN";
@@ -40,6 +42,7 @@ static char const * EgSpStatus_tostr(EgSpStatus status)
 typedef struct
 {
 	ecs_string_t name;
+	ecs_string_t description;
 	ecs_i32_t usb_vid;
 	ecs_i32_t usb_pid;
 	ecs_i32_t usb_bus;

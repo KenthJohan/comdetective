@@ -38,7 +38,8 @@ void EgSerialportImport(ecs_world_t *world)
 	.entity.entity = ecs_id(EgSpStatus), // Make sure to use existing id
 	.constants = {
 	{ .name = "UNDEFINED", .value = EG_SP_STATUS_UNDEFINED },
-	{ .name = "OPEN_ERROR", .value = EG_SP_STATUS_OPEN_ERROR },
+	{ .name = "ERROR", .value = EG_SP_STATUS_ERROR },
+	{ .name = "OPEN_ERROR", .value = EG_SP_STATUS_ERROR_OPEN },
 	{ .name = "CLOSING", .value = EG_SP_STATUS_CLOSING },
 	{ .name = "CLOSED", .value = EG_SP_STATUS_CLOSED },
 	{ .name = "OPEN", .value = EG_SP_STATUS_OPEN },
@@ -51,6 +52,10 @@ void EgSerialportImport(ecs_world_t *world)
 	.members = {
 	{
 	.name = "name",
+	.type = ecs_id(ecs_string_t)
+	},
+	{
+	.name = "description",
 	.type = ecs_id(ecs_string_t)
 	},
 	{

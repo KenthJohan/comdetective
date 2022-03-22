@@ -102,72 +102,75 @@ static void System_Ports_Pull(ecs_iter_t *it)
 
 static void System_Ports_Read(ecs_iter_t *it)
 {
+	struct sp_port * port;
 	enum sp_return r;
-	struct sp_port * port = NULL;
 	EgSerialPort * p = ecs_term(it, EgSerialPort, 1);
 	for (int i = 0; i < it->count; i ++)
 	{
 		char const * name = ecs_get_name(it->world, it->entities[i]);
-
-		//Temporary:
-		/*
-		if (p[i].status == EG_SP_STATUS_UNDEFINED)
-		{
-			printf("Set status to EG_SP_STATUS_OPEN\n");
-			p[i].status = EG_SP_STATUS_OPENING;
-		}
-		*/
+		port = p[i]._internal;
 
 		switch(p[i].status)
 		{
 		case EG_SP_STATUS_UNDEFINED:
-			p[i].status = EG_SP_STATUS_CLOSED;
+			r = sp_get_port_by_name(name, &port);
+			if (r == SP_OK)
+			{
+				p[i]._internal = port;
+				p[i].description = sp_get_port_description(port);
+				r = sp_open(port, SP_MODE_READ);
+				ecs_trace("sp_open %s:%i", name, r);
+				if (r == SP_OK)
+				{
+					get_info(port, p+i);
+					p[i].status = EG_SP_STATUS_CLOSING;
+				}
+				else
+				{
+					p[i].status = EG_SP_STATUS_CLOSED;
+				}
+			}
+			else
+			{
+				p[i].status = EG_SP_STATUS_ERROR;
+			}
 			break;
 
 		case EG_SP_STATUS_CLOSING:
-			port = p[i]._internal;
 			r = sp_close(port);
-			printf("sp_close %s:%i\n", name, r);
+			ecs_trace("sp_close %s:%i", name, r);
 			SP_EXIT_ON_ERROR(r);
-			sp_free_port(port);
-			p[i]._internal = NULL;
 			p[i].status = EG_SP_STATUS_CLOSED;
 			break;
 
 		case EG_SP_STATUS_OPENING:
-			r = sp_get_port_by_name(name, &port);
+			r = sp_open(port, SP_MODE_READ);
+			ecs_trace("sp_open %s:%i", name, r);
 			if (r == SP_OK)
 			{
-				r = sp_open(port, SP_MODE_READ);
-				printf("sp_open %s:%i\n", name, r);
-				if (r == SP_OK)
-				{
-					p[i].status = EG_SP_STATUS_OPEN;
-					r = sp_set_baudrate(port, 115200);
-					SP_EXIT_ON_ERROR(r);
-					r = sp_set_bits(port, 8);
-					SP_EXIT_ON_ERROR(r);
-					r = sp_set_parity(port, SP_PARITY_NONE);
-					SP_EXIT_ON_ERROR(r);
-					r = sp_set_stopbits(port, 1);
-					SP_EXIT_ON_ERROR(r);
-					r = sp_set_flowcontrol(port, SP_FLOWCONTROL_NONE);
-					SP_EXIT_ON_ERROR(r);
-					r = sp_add_port_events(global_events, port, SP_EVENT_RX_READY);
-					SP_EXIT_ON_ERROR(r);
-					p[i]._internal = port;
-				}
-				else
-				{
-					p[i].status = EG_SP_STATUS_OPEN_ERROR;
-				}
+				p[i].status = EG_SP_STATUS_OPEN;
+				r = sp_set_baudrate(port, 115200);
+				SP_EXIT_ON_ERROR(r);
+				r = sp_set_bits(port, 8);
+				SP_EXIT_ON_ERROR(r);
+				r = sp_set_parity(port, SP_PARITY_NONE);
+				SP_EXIT_ON_ERROR(r);
+				r = sp_set_stopbits(port, 1);
+				SP_EXIT_ON_ERROR(r);
+				r = sp_set_flowcontrol(port, SP_FLOWCONTROL_NONE);
+				SP_EXIT_ON_ERROR(r);
+				r = sp_add_port_events(global_events, port, SP_EVENT_RX_READY);
+				SP_EXIT_ON_ERROR(r);
+			}
+			else
+			{
+				p[i].status = EG_SP_STATUS_ERROR_OPEN;
 			}
 			break;
 
 		case EG_SP_STATUS_OPEN:
 			if(p[i]._internal)
 			{
-				port = p[i]._internal;
 				int bufsize = 100;
 				char buf[100] = {0};
 				int r;
