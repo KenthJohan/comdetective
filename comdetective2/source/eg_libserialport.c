@@ -51,7 +51,11 @@ static void get_info(struct sp_port * port, EgSerialPort * egport)
 	r = sp_get_config_bits(config, &bits);
 	SP_EXIT_ON_ERROR(r);
 
-	egport->name = "Portname";
+	//ecs_trace("usb_vid     %i", usb_vid);
+	//ecs_trace("usb_pid     %i", usb_pid);
+	//ecs_trace("usb_bus     %i", usb_bus);
+	//ecs_trace("usb_address %i", usb_address);
+	//ecs_trace("buadrate    %i", buadrate);
 	egport->buadrate = buadrate;
 	egport->bits = bits;
 	egport->parity = (EgSpParity)parity;
@@ -117,9 +121,16 @@ static void System_Ports_Read(ecs_iter_t *it)
 			if (r == SP_OK)
 			{
 				p[i]._internal = port;
-				p[i].description = sp_get_port_description(port);
 				r = sp_open(port, SP_MODE_READ);
 				ecs_trace("sp_open %s:%i", name, r);
+				p[i].name = sp_get_port_name(port);
+				p[i].transport = (EgSpTransport)sp_get_port_transport(port);
+				p[i].description = sp_get_port_description(port);
+				p[i].bluetooth_mac_address = sp_get_port_bluetooth_address(port);
+				p[i].usb_serial = sp_get_port_usb_serial(port);
+				p[i].usb_product = sp_get_port_usb_product(port);
+				p[i].usb_manufacturer = sp_get_port_usb_manufacturer(port);
+
 				if (r == SP_OK)
 				{
 					get_info(port, p+i);

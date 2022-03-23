@@ -8,6 +8,7 @@ ECS_COMPONENT_DECLARE(EgSerialPortSingleton);
 ECS_COMPONENT_DECLARE(EgSerialPort);
 ECS_COMPONENT_DECLARE(EgSpParity);
 ECS_COMPONENT_DECLARE(EgSpStatus);
+ECS_COMPONENT_DECLARE(EgSpTransport);
 
 
 
@@ -20,7 +21,16 @@ void EgSerialportImport(ecs_world_t *world)
 	ECS_COMPONENT_DEFINE(world, EgSerialPort);
 	ECS_COMPONENT_DEFINE(world, EgSpParity);
 	ECS_COMPONENT_DEFINE(world, EgSpStatus);
+	ECS_COMPONENT_DEFINE(world, EgSpTransport);
 
+	ecs_enum_init(world, &(ecs_enum_desc_t) {
+	.entity.entity = ecs_id(EgSpTransport), // Make sure to use existing id
+	.constants = {
+	{ .name = "NATIVE", .value = EG_SP_TRANSPORT_NATIVE },
+	{ .name = "USB", .value = EG_SP_TRANSPORT_USB },
+	{ .name = "BLUETOOTH", .value = EG_SP_TRANSPORT_BLUETOOTH }
+	}
+	});
 
 	ecs_enum_init(world, &(ecs_enum_desc_t) {
 	.entity.entity = ecs_id(EgSpParity), // Make sure to use existing id
@@ -75,9 +85,25 @@ void EgSerialportImport(ecs_world_t *world)
 	.type = ecs_id(ecs_i32_t)
 	},
 	{
+	.name = "usb_serial",
+	.type = ecs_id(ecs_string_t)
+	},
+	{
+	.name = "usb_product",
+	.type = ecs_id(ecs_string_t)
+	},
+	{
+	.name = "usb_manufacturer",
+	.type = ecs_id(ecs_string_t)
+	},
+	{
 	.name = "buadrate",
 	.type = ecs_id(ecs_i32_t),
 	.unit = EcsBitsPerSecond
+	},
+	{
+	.name = "bluetooth_mac_address",
+	.type = ecs_id(ecs_string_t)
 	},
 	{ .name = "parity", .type = ecs_id(EgSpParity) },
 	{

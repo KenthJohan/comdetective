@@ -23,6 +23,13 @@ typedef enum {
 	EG_SP_STATUS_OPENING = 6,
 } EgSpStatus;
 
+typedef enum {
+	EG_SP_TRANSPORT_NATIVE = 0,
+	EG_SP_TRANSPORT_USB = 1,
+	EG_SP_TRANSPORT_BLUETOOTH = 2
+} EgSpTransport;
+
+
 static char const * EgSpStatus_tostr(EgSpStatus status)
 {
 	switch (status)
@@ -47,7 +54,12 @@ typedef struct
 	ecs_i32_t usb_pid;
 	ecs_i32_t usb_bus;
 	ecs_i32_t usb_address;
+	ecs_string_t usb_serial;
+	ecs_string_t usb_product;
+	ecs_string_t usb_manufacturer;
 	ecs_i32_t buadrate;
+	EgSpTransport transport;
+	ecs_string_t bluetooth_mac_address;
 	EgSpParity parity;
 	ecs_i32_t bits;
 	EgSpStatus status;
@@ -67,6 +79,7 @@ extern ECS_COMPONENT_DECLARE(EgSerialPortSingleton);
 extern ECS_COMPONENT_DECLARE(EgSerialPort);
 extern ECS_COMPONENT_DECLARE(EgSpParity);
 extern ECS_COMPONENT_DECLARE(EgSpStatus);
+extern ECS_COMPONENT_DECLARE(EgSpTransport);
 
 
 void EgSerialportImport(ecs_world_t *world);
