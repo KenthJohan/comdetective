@@ -23,7 +23,7 @@
 
 static void System_Draw_Serialports(ecs_world_t * world, ecs_query_t *query, gs_gui_context_t * gui)
 {
-	gs_gui_window_begin(gui, "Window", gs_gui_rect(350, 40, 600, 500));
+	gs_gui_window_begin(gui, "Coms", gs_gui_rect(350, 40, 600, 500));
 	gs_gui_container_t* cnt = gs_gui_get_current_container(gui);
 	ecs_iter_t it = ecs_query_iter(world, query);
 	while (ecs_query_next(&it))
@@ -31,7 +31,7 @@ static void System_Draw_Serialports(ecs_world_t * world, ecs_query_t *query, gs_
 		EgSerialPort *p = ecs_term(&it, EgSerialPort, 1);
 		for (int i = 0; i < it.count; i ++)
 		{
-			const float m = cnt->body.w * 1.0f;
+			const float m = cnt->body.w * 0.5f;
 			gs_gui_layout_row(gui, 1, (int[]){m}, 0);
 
 			char const * name = ecs_get_name(world, it.entities[i]);
@@ -98,6 +98,9 @@ static void app_init()
 	app->world = world;
 	app->cb = gs_command_buffer_new();
 	gs_gui_init(&app->gui, gs_platform_main_window());
+	gs_gui_dock_ex(&app->gui, "Style_Editor", "Demo_Window", GS_GUI_SPLIT_TAB, 0.5f);
+	gs_gui_dock_ex(&app->gui, "Style_Editor", "Coms", GS_GUI_SPLIT_TAB, 0.5f);
+
 	app->asset_dir = gs_platform_dir_exists("./assets") ? "./assets" : "../assets";
 
 
@@ -119,6 +122,16 @@ static void app_init()
 }
 
 
+void dockspace(gs_gui_context_t* ctx)
+{
+	int32_t opt = GS_GUI_OPT_NOCLIP | GS_GUI_OPT_NOFRAME | GS_GUI_OPT_FORCESETRECT | GS_GUI_OPT_NOTITLE | GS_GUI_OPT_DOCKSPACE | GS_GUI_OPT_FULLSCREEN | GS_GUI_OPT_NOMOVE | GS_GUI_OPT_NOBRINGTOFRONT | GS_GUI_OPT_NOFOCUS | GS_GUI_OPT_NORESIZE;
+	gs_gui_window_begin_ex(ctx, "Dockspace", gs_gui_rect(350, 40, 600, 500), NULL, NULL, opt);
+	{
+		// Empty dockspace...
+	}
+	gs_gui_window_end(ctx);
+}
+
 
 static void app_update()
 {
@@ -128,11 +141,21 @@ static void app_update()
 	const gs_vec2 fbs = gs_platform_framebuffer_sizev(gs_platform_main_window());
 	if (gs_platform_key_pressed(GS_KEYCODE_ESC)) {gs_quit();}
 
+
+
+
+
 	gs_gui_begin(gui, fbs);
+	dockspace(gui);
+	gs_gui_demo_window(gui, gs_gui_rect(100, 100, 500, 500), NULL);
+	gs_gui_style_editor(gui, NULL, gs_gui_rect(350, 250, 300, 240), NULL);
 	System_Draw_Serialports(app->world, app->query_ports, gui);
 	//gs_gui_demo_window(gui, gs_gui_rect(200, 100, 500, 250), NULL);
 	//gs_gui_style_editor(gui, NULL, gs_gui_rect(350, 250, 300, 240), NULL);
+
 	gs_gui_end(gui);
+
+
 
 	gs_graphics_clear_desc_t clear = {.actions = &(gs_graphics_clear_action_t){.color = {0.05f, 0.05f, 0.05f, 1.f}}};
 	gs_graphics_renderpass_begin(cb, (gs_handle(gs_graphics_renderpass_t)){0});
