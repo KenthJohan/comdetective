@@ -43,11 +43,11 @@ static void System_Draw_Serialports(ecs_world_t * world, ecs_query_t *query, gs_
 			{
 				if (p[i].status == EG_SP_STATUS_CLOSED)
 				{
-					p[i].status = EG_SP_STATUS_OPENING;
+					p[i].status = EG_SP_STATUS_OPEN;
 				}
-				else if (p[i].status == EG_SP_STATUS_OPEN)
+				else if (p[i].status == EG_SP_STATUS_OPENED)
 				{
-					p[i].status = EG_SP_STATUS_CLOSING;
+					p[i].status = EG_SP_STATUS_CLOSE;
 				}
 			}
 		}
@@ -125,7 +125,7 @@ static void app_init()
 void dockspace(gs_gui_context_t* ctx)
 {
 	int32_t opt = GS_GUI_OPT_NOCLIP | GS_GUI_OPT_NOFRAME | GS_GUI_OPT_FORCESETRECT | GS_GUI_OPT_NOTITLE | GS_GUI_OPT_DOCKSPACE | GS_GUI_OPT_FULLSCREEN | GS_GUI_OPT_NOMOVE | GS_GUI_OPT_NOBRINGTOFRONT | GS_GUI_OPT_NOFOCUS | GS_GUI_OPT_NORESIZE;
-	gs_gui_window_begin_ex(ctx, "Dockspace", gs_gui_rect(350, 40, 600, 500), NULL, NULL, opt);
+	gs_gui_window_begin_ex(ctx, "Dockspace", gs_gui_rect(350, 40, 1000, 500), NULL, NULL, opt);
 	{
 		// Empty dockspace...
 	}

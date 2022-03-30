@@ -13,15 +13,6 @@ typedef enum {
 	EG_SP_PARITY_SPACE = 4
 } EgSpParity;
 
-typedef enum {
-	EG_SP_STATUS_UNDEFINED = 0,
-	EG_SP_STATUS_ERROR = 1,
-	EG_SP_STATUS_ERROR_OPEN = 2,
-	EG_SP_STATUS_CLOSING = 3,
-	EG_SP_STATUS_CLOSED = 4,
-	EG_SP_STATUS_OPEN = 5,
-	EG_SP_STATUS_OPENING = 6,
-} EgSpStatus;
 
 typedef enum {
 	EG_SP_TRANSPORT_NATIVE = 0,
@@ -30,6 +21,43 @@ typedef enum {
 } EgSpTransport;
 
 
+typedef enum {
+	// The next state can by any.
+	EG_SP_STATUS_UNDEFINED,
+
+	// This states that the port has a unknown error.
+	EG_SP_STATUS_ERROR,
+
+	// This states that the port got an error from opening a port.
+	EG_SP_STATUS_ERROR_OPEN,
+
+	// This states that the port got an error from closing a port.
+	EG_SP_STATUS_ERROR_CLOSE,
+
+	// This states that the port got an error from updating a port.
+	EG_SP_STATUS_ERROR_UPDATE,
+
+	// This action states that a flecs system should try to close the port.
+	// The next state can be CLOSED or ERROR_CLOSE.
+	EG_SP_STATUS_CLOSE,
+
+	// This states that the port is closed.
+	// The next state can by any.
+	EG_SP_STATUS_CLOSED,
+
+	// This action states that a flecs system should try to open the port.
+	// The next state can be OPENED or ERROR_OPEN.
+	EG_SP_STATUS_OPEN,
+
+	// This states that the port is opening.
+	// The next state can be any.
+	EG_SP_STATUS_OPENED,
+
+	// This action states that a flecs system should try to update the port using configration stored in flecs component.
+	// The next state can be OPEN or ERROR_UPDATE.
+	EG_SP_STATUS_UPDATE
+} EgSpStatus;
+
 static char const * EgSpStatus_tostr(EgSpStatus status)
 {
 	switch (status)
@@ -37,10 +65,13 @@ static char const * EgSpStatus_tostr(EgSpStatus status)
 	case EG_SP_STATUS_UNDEFINED: return "UNDEFINED";
 	case EG_SP_STATUS_ERROR: return "ERROR";
 	case EG_SP_STATUS_ERROR_OPEN: return "ERROR_OPEN";
-	case EG_SP_STATUS_CLOSING: return "CLOSING";
+	case EG_SP_STATUS_ERROR_CLOSE: return "ERROR_CLOSE";
+	case EG_SP_STATUS_ERROR_UPDATE: return "ERROR_UPDATE";
+	case EG_SP_STATUS_CLOSE: return "CLOSE";
 	case EG_SP_STATUS_CLOSED: return "CLOSED";
 	case EG_SP_STATUS_OPEN: return "OPEN";
-	case EG_SP_STATUS_OPENING: return "OPENING";
+	case EG_SP_STATUS_OPENED: return "OPENED";
+	case EG_SP_STATUS_UPDATE: return "UPDATE";
 	default: return "";
 	}
 }

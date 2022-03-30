@@ -50,10 +50,13 @@ void EgSerialportImport(ecs_world_t *world)
 	{ .name = "UNDEFINED", .value = EG_SP_STATUS_UNDEFINED },
 	{ .name = "ERROR", .value = EG_SP_STATUS_ERROR },
 	{ .name = "OPEN_ERROR", .value = EG_SP_STATUS_ERROR_OPEN },
-	{ .name = "CLOSING", .value = EG_SP_STATUS_CLOSING },
+	{ .name = "ERROR_CLOSE", .value = EG_SP_STATUS_ERROR_CLOSE },
+	{ .name = "ERROR_UPDATE", .value = EG_SP_STATUS_ERROR_UPDATE },
+	{ .name = "CLOSING", .value = EG_SP_STATUS_CLOSE },
 	{ .name = "CLOSED", .value = EG_SP_STATUS_CLOSED },
 	{ .name = "OPEN", .value = EG_SP_STATUS_OPEN },
-	{ .name = "OPENING", .value = EG_SP_STATUS_OPENING },
+	{ .name = "OPENED", .value = EG_SP_STATUS_OPENED },
+	{ .name = "UPDATE", .value = EG_SP_STATUS_UPDATE },
 	}
 	});
 
